@@ -123,50 +123,15 @@ with tab_ingesta:
     # Selector de Modo de Ingesta
     modo_ingesta = st.radio(
         "Modo de Carga de Escaneos:",
-        ["🗂️ Arrastrar Múltiples Archivos (Drag & Drop)", "🔍 Seleccionar Archivo Individual"],
+        ["🗂️ Arrastrar Múltiples Archivos (Drag & Drop)", "🔍 Seleccionar Archivo Individual (Muestras)"],
         horizontal=True
     )
     
     archivos_a_procesar = []
     
-    if modo_ingesta == "📁 Escanear Carpeta Completa (Batch)":
-        st.markdown("Haz clic en el siguiente botón para seleccionar gráficamente con el ratón la carpeta que contiene los PDFs.")
-        
-        # Helper function for opening the native folder dialog
-        def select_folder_dialog():
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            root.wm_attributes('-topmost', 1)
-            folder = filedialog.askdirectory(master=root, title="Seleccione la carpeta con las observaciones en PDF")
-            root.destroy()
-            return folder
-
-        col_btn, col_chk = st.columns([2, 2])
-        
-        if col_btn.button("📂 Seleccionar Carpeta con el Ratón (Ventana de Windows)", use_container_width=True):
-            selected_path = select_folder_dialog()
-            if selected_path:
-                st.session_state["scanned_folder_path"] = selected_path
-                st.rerun()
-
-        excluir_manuales = col_chk.checkbox("Excluir manuales (PRC-*)", value=True)
-        
-        carpeta_input = st.session_state.get("scanned_folder_path", "")
-        
-        if carpeta_input and os.path.exists(carpeta_input):
-            encontrados = scan_directory_for_pdfs(carpeta_input, exclude_procedures=excluir_manuales)
-            st.success(f"📍 **Carpeta seleccionada:** `{carpeta_input}`\n\n📄 Se detectaron **{len(encontrados)}** archivos PDF listos para escanear.")
-            archivos_a_procesar = encontrados
-        elif not carpeta_input:
-            st.info("Aún no se ha seleccionado ninguna carpeta.")
-        else:
-            st.error(f"La carpeta '{carpeta_input}' ya no existe en el sistema.")
-
-    elif modo_ingesta == "📤 Arrastrar Múltiples Archivos (Drag & Drop)":
+    if modo_ingesta == "🗂️ Arrastrar Múltiples Archivos (Drag & Drop)":
         archivos_subidos = st.file_uploader(
-            "Arrastra aquí todos los PDFs escaneados de la carpeta:",
+            "Arrastra aquí todos los PDFs escaneados:",
             type=["pdf"],
             accept_multiple_files=True
         )
@@ -185,7 +150,7 @@ with tab_ingesta:
         # Selección individual
         ejemplos_disponibles = {
             "MAN DE INS ELE AGOSTO SEM 3.pdf": "Mantenimiento Eléctrico (Contecar)",
-            "Observación compórtate 11-09-2026.pdf": "Entrada y Salida Vehicular (SPRC)",
+            "Observación compórtate 11-09-2026.pdf": "Entrada y Salida Vehicular (SPRC)",
             "CamScanner 22-08-26 13.02.pdf": "Plataforma de Aforos (Sescaribe)",
             "Scan_0008 2.pdf": "Contenedores Refrigerados (Impotarja)"
         }
