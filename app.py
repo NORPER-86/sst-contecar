@@ -442,185 +442,234 @@ with tab_dashboard:
             max_date = datetime.today().date()
         
         # Filtros Superiores con diseño SURA
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-        
-        # SIN min_value ni max_value para no bloquear el calendario si hay solo 1 dia registrado
-        filtro_fechas = col_f1.date_input("Rango de Fechas", value=(min_date, max_date))
-        
-        obs_options = ["TODOS"] + sorted([str(x) for x in df_supa["observador"].dropna().unique() if str(x) != 'nan'])
-        filtro_obs = col_f2.selectbox("Observador (Persona)", obs_options)
-        
-        area_options = ["TODAS"] + sorted([str(x) for x in df_supa["area"].dropna().unique() if str(x) != 'nan'])
-        filtro_area = col_f3.selectbox("Área Operativa", area_options)
-        
-        cat_options = ["TODAS"] + sorted([str(x) for x in df_supa["categoria"].dropna().unique() if str(x) != 'nan'])
-        filtro_cat = col_f4.selectbox("Categoría Calidad", cat_options)
-        
-        # Aplicar filtros
-        df_filtered = df_supa.copy()
-        
-        if isinstance(filtro_fechas, tuple) and len(filtro_fechas) == 2:
-            start_dt, end_dt = filtro_fechas
-            df_filtered = df_filtered[
-                (df_filtered["fecha_realizacion"].dt.date >= start_dt) & 
-                (df_filtered["fecha_realizacion"].dt.date <= end_dt)
-            ]
-        elif isinstance(filtro_fechas, tuple) and len(filtro_fechas) == 1:
-            start_dt = filtro_fechas[0]
-            df_filtered = df_filtered[df_filtered["fecha_realizacion"].dt.date == start_dt]
+        with st.form("form_analitica"):
+            st.markdown("#### Configuración de Filtros")
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             
-        if filtro_obs != "TODOS":
-            df_filtered = df_filtered[df_filtered["observador"] == filtro_obs]
-        if filtro_area != "TODAS":
-            df_filtered = df_filtered[df_filtered["area"] == filtro_area]
-        if filtro_cat != "TODAS":
-            df_filtered = df_filtered[df_filtered["categoria"] == filtro_cat]
+            # SIN min_value ni max_value para no bloquear el calendario si hay solo 1 dia registrado
+            filtro_fechas = col_f1.date_input("Rango de Fechas", value=(min_date, max_date))
             
-        total_obs = len(df_filtered)
-        
-        pcp_vals = pd.to_numeric(df_filtered["pcp_calculado"], errors="coerce").dropna()
-        if not pcp_vals.empty:
-            avg_pcp = pcp_vals.mean()
+            obs_options = ["TODOS"] + sorted([str(x) for x in df_supa["observador"].dropna().unique() if str(x) != 'nan'])
+            filtro_obs = col_f2.selectbox("Observador (Persona)", obs_options)
+            
+            area_options = ["TODAS"] + sorted([str(x) for x in df_supa["area"].dropna().unique() if str(x) != 'nan'])
+            filtro_area = col_f3.selectbox("Área Operativa", area_options)
+            
+            cat_options = ["TODAS"] + sorted([str(x) for x in df_supa["categoria"].dropna().unique() if str(x) != 'nan'])
+            filtro_cat = col_f4.selectbox("Categoría Calidad", cat_options)
+            
+            btn_generar = st.form_submit_button("Generar Analítica 📊", type="primary")
+            
+        if not btn_generar and not st.session_state.get('analitica_generada', False):
+            st.info("👈 Selecciona los filtros que desees y haz clic en 'Generar Analítica' para visualizar el dashboard.")
         else:
-            avg_pcp = 0.0
+            st.session_state['analitica_generada'] = True
             
-        # Contar cuántos tienen plan propuesto verificando dentro del JSON raw_data
-        def tiene_plan(raw):
-            try:
-                return 1 if raw.get("input", {}).get("plan_mejoramiento", {}).get("propuesto") else 0
-            except:
-                return 0
+            # Aplicar filtros
+            df_filtered = df_supa.copy()
+        
+            if isinstance(filtro_fechas, tuple) and len(filtro_fechas) == 2:
+                start_dt, end_dt = filtro_fechas
+                df_filtered = df_filtered[
+                    (df_filtered["fecha_realizacion"].dt.date >= start_dt) & 
+                    (df_filtered["fecha_realizacion"].dt.date <= end_dt)
+                ]
+            elif isinstance(filtro_fechas, tuple) and len(filtro_fechas) == 1:
+                start_dt = filtro_fechas[0]
+                df_filtered = df_filtered[df_filtered["fecha_realizacion"].dt.date == start_dt]
+            
+            if filtro_obs != "TODOS":
+                df_filtered = df_filtered[df_filtered["observador"] == filtro_obs]
+            if filtro_area != "TODAS":
+                df_filtered = df_filtered[df_filtered["area"] == filtro_area]
+            if filtro_cat != "TODAS":
+                df_filtered = df_filtered[df_filtered["categoria"] == filtro_cat]
+            
+            total_obs = len(df_filtered)
+        
+            pcp_vals = pd.to_numeric(df_filtered["pcp_calculado"], errors="coerce").dropna()
+            if not pcp_vals.empty:
+                avg_pcp = pcp_vals.mean()
+            else:
+                avg_pcp = 0.0
+            
+            # Contar cuántos tienen plan propuesto verificando dentro del JSON raw_data
+            def tiene_plan(raw):
+                try:
+                    return 1 if raw.get("input", {}).get("plan_mejoramiento", {}).get("propuesto") else 0
+                except:
+                    return 0
                 
-        con_plan = df_filtered["raw_data"].apply(tiene_plan).sum() if not df_filtered.empty else 0
-        cat_d = (df_filtered["categoria"] == "D").sum()
+            con_plan = df_filtered["raw_data"].apply(tiene_plan).sum() if not df_filtered.empty else 0
+            cat_d = (df_filtered["categoria"] == "D").sum()
         
-        # Tarjetas de KPIs estilo Manual SURA
-        k1, k2, k3, k4 = st.columns(4)
+            # Tarjetas de KPIs estilo Manual SURA
+            k1, k2, k3, k4 = st.columns(4)
         
-        with k1:
-            st.markdown(f"""
-            <div class="sura-kpi-card sura-kpi-border-blue">
-                <div class="sura-kpi-title">Observaciones Registradas</div>
-                <div class="sura-kpi-value">{total_obs:,}</div>
-                <div class="sura-kpi-subtext">Total en el periodo filtrado</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with k2:
-            delta_color = "#059669" if avg_pcp >= 95.0 else "#DC2626"
-            delta_sign = "+" if avg_pcp >= 95.0 else ""
-            st.markdown(f"""
-            <div class="sura-kpi-card sura-kpi-border-cyan">
-                <div class="sura-kpi-title">% PCP Promedio Cumplido</div>
-                <div class="sura-kpi-value">{avg_pcp:.1f}%</div>
-                <div class="sura-kpi-subtext" style="color: {delta_color}; font-weight:600;">
-                    {delta_sign}{avg_pcp - 95.0:.1f}% vs Meta Corporativa (95%)
+            with k1:
+                st.markdown(f"""
+                <div class="sura-kpi-card sura-kpi-border-blue">
+                    <div class="sura-kpi-title">Observaciones Registradas</div>
+                    <div class="sura-kpi-value">{total_obs:,}</div>
+                    <div class="sura-kpi-subtext">Total en el periodo filtrado</div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
             
-        with k3:
-            pct_plan = (con_plan / max(1, total_obs)) * 100
-            st.markdown(f"""
-            <div class="sura-kpi-card sura-kpi-border-yellow">
-                <div class="sura-kpi-title">Planes de Mejora Propuestos</div>
-                <div class="sura-kpi-value">{con_plan:,}</div>
-                <div class="sura-kpi-subtext">Cobertura: <b>{pct_plan:.1f}%</b> de observaciones</div>
-            </div>
-            """, unsafe_allow_html=True)
+            with k2:
+                delta_color = "#059669" if avg_pcp >= 95.0 else "#DC2626"
+                delta_sign = "+" if avg_pcp >= 95.0 else ""
+                st.markdown(f"""
+                <div class="sura-kpi-card sura-kpi-border-cyan">
+                    <div class="sura-kpi-title">% PCP Promedio Cumplido</div>
+                    <div class="sura-kpi-value">{avg_pcp:.1f}%</div>
+                    <div class="sura-kpi-subtext" style="color: {delta_color}; font-weight:600;">
+                        {delta_sign}{avg_pcp - 95.0:.1f}% vs Meta Corporativa (95%)
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
             
-        with k4:
-            pct_d = (cat_d / max(1, total_obs)) * 100
-            st.markdown(f"""
-            <div class="sura-kpi-card sura-kpi-border-red">
-                <div class="sura-kpi-title">Incompletas (Categoría D)</div>
-                <div class="sura-kpi-value" style="color: #DC2626;">{cat_d:,}</div>
-                <div class="sura-kpi-subtext">Tasa de no conformidad: <b>{pct_d:.1f}%</b></div>
-            </div>
-            """, unsafe_allow_html=True)
+            with k3:
+                pct_plan = (con_plan / max(1, total_obs)) * 100
+                st.markdown(f"""
+                <div class="sura-kpi-card sura-kpi-border-yellow">
+                    <div class="sura-kpi-title">Planes de Mejora Propuestos</div>
+                    <div class="sura-kpi-value">{con_plan:,}</div>
+                    <div class="sura-kpi-subtext">Cobertura: <b>{pct_plan:.1f}%</b> de observaciones</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-        st.markdown("<br>", unsafe_allow_html=True)
+            with k4:
+                pct_d = (cat_d / max(1, total_obs)) * 100
+                st.markdown(f"""
+                <div class="sura-kpi-card sura-kpi-border-red">
+                    <div class="sura-kpi-title">Incompletas (Categoría D)</div>
+                    <div class="sura-kpi-value" style="color: #DC2626;">{cat_d:,}</div>
+                    <div class="sura-kpi-subtext">Tasa de no conformidad: <b>{pct_d:.1f}%</b></div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
         
-        # Fila de Gráficos 1
-        cg1, cg2 = st.columns(2)
+            # Fila de Gráficos 1
+            cg1, cg2 = st.columns(2)
         
-        with cg1:
-            st.markdown("##### 🏆 Distribución de Categorías de Calidad (Matriz SURA)")
-            cat_counts = df_filtered["categoria"].value_counts().reset_index()
-            cat_counts.columns = ["Categoría", "Cantidad"]
+            with cg1:
+                st.markdown("##### 🏆 Distribución de Categorías de Calidad (Matriz SURA)")
+                cat_counts = df_filtered["categoria"].value_counts().reset_index()
+                cat_counts.columns = ["Categoría", "Cantidad"]
             
-            color_map = {cat: data["color"] for cat, data in CATEGORY_PALETTE.items()}
+                color_map = {cat: data["color"] for cat, data in CATEGORY_PALETTE.items()}
             
-            fig_cat = px.bar(
-                cat_counts, x="Categoría", y="Cantidad",
-                color="Categoría", color_discrete_map=color_map,
-                text="Cantidad"
-            )
-            fig_cat.update_layout(
-                showlegend=False, height=350,
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=20, b=20),
-                xaxis=dict(title="Categoría Oficial"),
-                yaxis=dict(title="Número de Observaciones", showgrid=True, gridcolor="#E2E8F0")
-            )
-            st.plotly_chart(fig_cat, use_container_width=True)
+                fig_cat = px.bar(
+                    cat_counts, x="Categoría", y="Cantidad",
+                    color="Categoría", color_discrete_map=color_map,
+                    text="Cantidad"
+                )
+                fig_cat.update_layout(
+                    showlegend=False, height=350,
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    xaxis=dict(title="Categoría Oficial"),
+                    yaxis=dict(title="Número de Observaciones", showgrid=True, gridcolor="#E2E8F0")
+                )
+                st.plotly_chart(fig_cat, use_container_width=True)
             
-        with cg2:
-            st.markdown("##### 📈 Evolución del %PCP (Tendencia Temporal)")
-            df_pcp_trend = df_filtered.dropna(subset=["fecha_realizacion", "pcp_calculado", "terminal"]).copy()
-            df_pcp_trend["Mes"] = df_pcp_trend["fecha_realizacion"].dt.strftime("%Y-%m")
-            df_pcp_trend["PCP_Pct"] = pd.to_numeric(df_pcp_trend["pcp_calculado"], errors="coerce")
+            with cg2:
+                st.markdown("##### 📈 Evolución del %PCP (Tendencia Temporal)")
+                df_pcp_trend = df_filtered.dropna(subset=["fecha_realizacion", "pcp_calculado", "terminal"]).copy()
+                df_pcp_trend["Mes"] = df_pcp_trend["fecha_realizacion"].dt.strftime("%Y-%m")
+                df_pcp_trend["PCP_Pct"] = pd.to_numeric(df_pcp_trend["pcp_calculado"], errors="coerce")
             
-            trend_grouped = df_pcp_trend.groupby(["Mes", "terminal"])["PCP_Pct"].mean().reset_index()
-            trend_grouped = trend_grouped.sort_values("Mes")
+                trend_grouped = df_pcp_trend.groupby(["Mes", "terminal"])["PCP_Pct"].mean().reset_index()
+                trend_grouped = trend_grouped.sort_values("Mes")
             
-            fig_trend = px.line(
-                trend_grouped, x="Mes", y="PCP_Pct", color="terminal",
-                markers=True, color_discrete_map={"CTC": SURA_BLUE, "SPRC": SURA_CYAN}
-            )
-            fig_trend.update_layout(
-                height=350, yaxis_title="% PCP Promedio",
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=20, b=20),
-                yaxis=dict(range=[80, 105], showgrid=True, gridcolor="#E2E8F0")
-            )
-            st.plotly_chart(fig_trend, use_container_width=True)
+                fig_trend = px.line(
+                    trend_grouped, x="Mes", y="PCP_Pct", color="terminal",
+                    markers=True, color_discrete_map={"CTC": SURA_BLUE, "SPRC": SURA_CYAN}
+                )
+                fig_trend.update_layout(
+                    height=350, yaxis_title="% PCP Promedio",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=20, r=20, t=20, b=20),
+                    yaxis=dict(range=[80, 105], showgrid=True, gridcolor="#E2E8F0")
+                )
+                st.plotly_chart(fig_trend, use_container_width=True)
             
-        # Fila de Gráficos 2
-        cg3, cg4 = st.columns(2)
+            # Fila de Gráficos 2
+            cg3, cg4 = st.columns(2)
         
-        with cg3:
-            st.markdown("##### ⚓ Observaciones por Área Operativa")
-            area_counts = df_filtered["area"].value_counts().reset_index().head(10)
-            area_counts.columns = ["Área", "Observaciones"]
-            fig_area = px.bar(
-                area_counts, y="Área", x="Observaciones", orientation='h',
-                color_discrete_sequence=[SURA_BLUE]
-            )
-            fig_area.update_layout(
-                height=350, yaxis={"categoryorder": "total ascending"},
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=20, r=20, t=20, b=20)
-            )
-            st.plotly_chart(fig_area, use_container_width=True)
+            with cg3:
+                st.markdown("##### ⚓ Observaciones por Área Operativa")
+                area_counts = df_filtered["area"].value_counts().reset_index().head(10)
+                area_counts.columns = ["Área", "Observaciones"]
+                fig_area = px.bar(
+                    area_counts, y="Área", x="Observaciones", orientation='h',
+                    color_discrete_sequence=[SURA_BLUE]
+                )
+                fig_area.update_layout(
+                    height=350, yaxis={"categoryorder": "total ascending"},
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=20, r=20, t=20, b=20)
+                )
+                st.plotly_chart(fig_area, use_container_width=True)
             
-        with cg4:
-            st.markdown("##### 🏢 Observaciones por Empresa Ejecutante")
-            emp_counts = df_filtered["empresa_ejecutante"].value_counts().reset_index().head(10)
-            emp_counts.columns = ["Empresa", "Observaciones"]
-            fig_emp = px.pie(
-                emp_counts, names="Empresa", values="Observaciones",
-                color_discrete_sequence=[SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK, "#94A3B8"]
-            )
-            fig_emp.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig_emp, use_container_width=True)
+            with cg4:
+                st.markdown("##### 🏢 Observaciones por Empresa Ejecutante")
+                emp_counts = df_filtered["empresa_ejecutante"].value_counts().reset_index().head(10)
+                emp_counts.columns = ["Empresa", "Observaciones"]
+                fig_emp = px.pie(
+                    emp_counts, names="Empresa", values="Observaciones",
+                    color_discrete_sequence=[SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK, "#94A3B8"]
+                )
+                fig_emp.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
+                st.plotly_chart(fig_emp, use_container_width=True)
 
-# ==========================================================
-# TAB 3: BASE DE DATOS MAESTRA (44 COLUMNAS)
-# ==========================================================
+
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown("#### 📝 Generador de Informe Ejecutivo Automático")
+            st.caption("Genera un resumen en texto clasificado por las categorías de calidad A, B, C, D basado en tus filtros.")
+            
+            if st.button("Generar Informe de la Selección", type="secondary"):
+                with st.spinner("La Inteligencia Artificial está redactando el informe ejecutivo..."):
+                    try:
+                        from google import genai
+                        client = genai.Client()
+                        
+                        resumen_cat = df_filtered["categoria"].value_counts().to_dict()
+                        total_obs = len(df_filtered)
+                        
+                        prompt = f'''
+Eres el Director de Seguridad y Salud en el Trabajo (SST) de CONTECAR / SURA.
+Acabas de revisar un lote de {total_obs} observaciones de comportamiento.
+La distribución de calidad de las observaciones es la siguiente (Matriz SURA):
+{resumen_cat}
+
+Contexto de calificaciones:
+- A / A+: Sobresalientes, alto impacto.
+- B / B+: Buenas, planes de mejora estándar.
+- C / C+: Regulares, incompletas pero funcionales.
+- D: Deficientes, requieren subsanación.
+
+Escribe un reporte ejecutivo formal y corto (máximo 3 párrafos).
+1. Un párrafo resumiendo el balance general.
+2. Un desglose en viñetas (bullet points) destacando las clasificaciones.
+3. Una recomendación final para los supervisores.
+'''
+                        
+                        response = client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=prompt
+                        )
+                        st.success("Informe generado con éxito:")
+                        st.write(response.text)
+                    except Exception as e:
+                        st.error(f"No se pudo generar el informe: {e}")
+    # ==========================================================
+    # TAB 3: BASE DE DATOS MAESTRA (44 COLUMNAS)
+    # ==========================================================
 with tab_datos:
     st.markdown("### 🗄️ Explorador de la Base de Datos Maestra (44 Columnas)")
     if df_master.empty:
