@@ -1,0 +1,69 @@
+
+CRITERIOS PARA CALIFACIÓN
+Aspectos a evaluar
+Categoría
+Descripción y Recomendaciones
+Si no diligencia algún campo: fecha, hora, datos de la empresa, si marca un “no” y no diligencia la columna de los ¿Por qué?, si el PCP es menor a 100% y no diligenció un Plan de mejora, si no diligenció “Comentarios del observado”
+D
+El formato de observación presenta campos sin diligenciar. Se solicita completar la totalidad de la información requerida y remitir nuevamente la observación para su revisión y registro correspondientes.
+Si diligencia sólo Comentarios del observado con: Sin comentarios
+C
+Diligenciamiento adecuado del formato.
+Para fortalecer la calidad de la observación y mejorar su calificación, se recomienda formular planes de mejora concretos y específicos, acompañados de evidencia fotográfica de la acción o mejora a implementar. Adicionalmente, es importante registrar en el campo de comentarios del observado: cómo se sintió durante la observación, así como aprovechar el espacio para dar a conocer y reforzar los objetivos y beneficios del proceso ComPORTate.
+Si diligencia sólo Comentarios del observado y/o Comentarios adicionales
+C+
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Para mejorar su calificación en próximas observaciones identifique un plan de mejora concreto enfocado en la prevención de accidentes, anexe fotos de la condición o mejora a implementar.
+Si diligencia plan de mejora tipo recomendación: el plan de mejora está asociado a un punto que no es viable o plan de mejora que no aplica
+R
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica recomendación, será enviada a encargado de gestión para validación.
+Para mejorar su calificación en próximas observaciones identifique un plan de mejora concreto enfocado en la prevención de accidentes, anexe fotos de la condición o mejora a implementar.
+Si diligencia plan de mejora tipo recomendación que es viable
+R+
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica recomendación, será enviada a encargado de gestión para validación.
+Para mejorar su calificación en próximas observaciones identifique un plan de mejora concreto enfocado en la prevención de accidentes, anexe fotos de la condición o mejora a implementar.
+Si diligencia plan de mejora especifico y aplicable
+B
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica plan de mejora, será enviado a encargado de gestión para validación.
+Para mejorar su calificación en próximas observaciones identifique un plan de mejora concreto enfocado en la prevención de accidentes, anexe fotos de la condición o mejora a implementar.
+Si diligencia plan de mejora especifico, aplicable y enfocado en la prevención de accidentes o temas de seguridad y salud en el trabajo
+B+
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica plan de mejora concreto enfocado en la prevención de accidentes, será enviado a encargado de gestión para validación.
+Gracias por las fotos y anexos enviados, ayudan a gestionar con más efectividad las condiciones reportadas. 
+Si diligencia plan de mejora especifico, aplicable y enfocado en la prevención de accidentes o temas de seguridad y salud en el trabajo con alto impacto en la accidentalidad
+A
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica plan de mejora concreto enfocado en la prevención de accidentes, será enviado a encargado de gestión para validación.
+Gracias por las fotos y anexos enviados, ayudan a gestionar con más efectividad las condiciones reportadas.
+Si diligencia plan de mejora especifico, aplicable y enfocado en la prevención de accidentes o temas de seguridad y salud en el trabajo con alto impacto en la accidentalidad y anexa un análisis de las condiciones de seguridad o la propuesta de mejora
+A+
+Diligenciamiento adecuado del formato.
+Comentario del observado bien redactado.
+Se identifica plan de mejora concreto enfocado en la prevención de accidentes, será enviado a encargado de gestión para validación.
+Gracias por las fotos y anexos enviados, ayudan a gestionar con más efectividad las condiciones reportadas.
+
+
+
+PROMPT
+Coloca el titulo de cada observación en una columna que se titule: Tarea Crítica.
+Coloca Empresa si es SPRC o Contecar
+Ignora el texto preimpreso del formato.
+Extrae únicamente los campos diligenciados manualmente.
+Corrige errores ortográficos evidentes, pero conserva el sentido original del texto.
+Si una palabra no es totalmente legible, indícala entre corchetes [ilegible].
+Organiza la información por cada observación encontrada.
+Extrae como mínimo:- Fecha- Hora- Lugar- Empresa ejecutante- Observador- Supervisor SST- Plan de mejoramiento- Comentarios del observado - Comentarios del observador - Porcentaje PCP
+Entrega la información en texto limpio, lista para copiar y pegar en otro formato.
+No resumas. Transcribe el contenido manuscrito completo.
+Corrige ortografía y puntuación únicamente cuando sea necesario para facilitar la lectura.
+Exporta a un archivo en excel esta información con los nombres de la columna que está en cada sección

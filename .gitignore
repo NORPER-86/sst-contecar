@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.streamlit/
+DOCUMENTOS DE BASE/
+Ejemplos observaciones digitadas.xlsx
+requirements_freeze.txt
