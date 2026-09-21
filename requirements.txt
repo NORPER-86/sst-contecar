@@ -7,3 +7,4 @@ pillow==12.3.0
 pymupdf==1.28.2
 python-dotenv==1.0.0
 openpyxl
+plotly==7.1.0
