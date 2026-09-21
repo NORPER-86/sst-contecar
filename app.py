@@ -123,7 +123,7 @@ with tab_ingesta:
     # Selector de Modo de Ingesta
     modo_ingesta = st.radio(
         "Modo de Carga de Escaneos:",
-        ["📁 Escanear Carpeta Completa (Batch)", "📤 Arrastrar Múltiples Archivos (Drag & Drop)", "🔍 Seleccionar Archivo Individual"],
+        ["🗂️ Arrastrar Múltiples Archivos (Drag & Drop)", "🔍 Seleccionar Archivo Individual"],
         horizontal=True
     )
     
