@@ -64,11 +64,27 @@ def evaluate_observation(obs: ObservationInput) -> ObservationEvaluation:
         if item.cumple == "NO" and (not item.por_que_causa or not item.por_que_causa.strip()):
             motivos_d.append(f"El ítem {item.item_number} está marcado como 'NO' y no tiene diligenciada la columna de los ¿Por qué?")
             
-    # PCP < 100% exige plan de mejoramiento
+    # Verificación de Plan de Mejoramiento real (No evasivas)
     plan = obs.plan_mejoramiento
-    tiene_plan = plan.propuesto is not None and len(plan.propuesto.strip()) > 3
+    propuesto_texto = (plan.propuesto or "").strip().lower()
+    
+    es_plan_evasivo = False
+    if len(propuesto_texto) < 4:
+        es_plan_evasivo = True
+    else:
+        evasivas = [
+            "ninguna", "ninguno", "n/a", "na", "sin comentario", "sin recomendacion", 
+            "no hay", "no se ", "no aplica", "no existen", "nada", "sin novedad"
+        ]
+        # Si empieza con alguna frase evasiva típica y es corto
+        if len(propuesto_texto) < 50 and any(propuesto_texto.startswith(e) for e in evasivas):
+            es_plan_evasivo = True
+            
+    tiene_plan = not es_plan_evasivo
+    
+    # PCP < 100% exige plan de mejoramiento
     if pcp < 100.0 and not tiene_plan:
-        motivos_d.append("El PCP es menor al 100% y no se diligenció un Plan de mejora")
+        motivos_d.append("El PCP es menor al 100% y no se diligenció un Plan de mejora válido")
         
     # Comentarios del observado obligatorios
     comentarios_obs = (obs.comentarios_observado or "").strip()
