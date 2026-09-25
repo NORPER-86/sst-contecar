@@ -8,7 +8,7 @@ import io
 import json
 import re
 from typing import List, Optional, Tuple, Dict, Any
-from PIL import Image
+from PIL import Image, ImageEnhance
 import pymupdf
 from datetime import datetime
 
@@ -35,13 +35,14 @@ Instrucciones estrictas:
 7. Comentarios del observado: Transcribe fielmente lo que el observado comentó sobre cómo se sintió o riesgos adicionales.
 8. Comentarios adicionales del observador / Refuerzo positivo: Transcribe fielmente las observaciones finales.
 9. Detección de evidencias: Indica si las páginas incluyen fotografías de la condición o análisis causal/DOFA adjuntos.
-10. Si alguna palabra no es legible, indícala como [ilegible]. Conserva el sentido original sin resumir.
+10. Si alguna palabra es difícil de leer, usa el contexto técnico de Seguridad Portuaria para deducirla. Si es 100% ilegible, indícala como [ilegible].
 """
 
 
-def render_pdf_to_images(pdf_path: str, dpi: int = 200) -> List[Image.Image]:
+def render_pdf_to_images(pdf_path: str, dpi: int = 300) -> List[Image.Image]:
     """
-    Renderiza todas las páginas de un archivo PDF a imágenes PIL de alta resolución.
+    Renderiza todas las páginas de un archivo PDF a imágenes PIL de alta resolución
+    y aplica filtros de contraste para mejorar la lectura de texto manuscrito.
     """
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"No se encontró el archivo PDF: {pdf_path}")
@@ -56,6 +57,14 @@ def render_pdf_to_images(pdf_path: str, dpi: int = 200) -> List[Image.Image]:
         pix = page.get_pixmap(matrix=mat, alpha=False)
         img_bytes = pix.tobytes("png")
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        
+        # Mejora de Contraste y Nitidez para resaltar la tinta del bolígrafo
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.5)  # Aumentar contraste un 50%
+        
+        sharpness = ImageEnhance.Sharpness(img)
+        img = sharpness.enhance(1.2) # Aumentar nitidez un 20%
+        
         images.append(img)
         
     return images
