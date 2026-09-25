@@ -73,13 +73,17 @@ def render_pdf_to_images(pdf_path: str, dpi: int = 300) -> List[Image.Image]:
 def extract_with_gemini(images: List[Image.Image], api_key: str) -> ObservationInput:
     """
     Extrae la información estructurada utilizando Google GenAI (Gemini Vision)
-    y el esquema tipado ObservationInput.
+    y el esquema tipado ObservationInput. Rota entre modelos y múltiples API Keys (separadas por coma) en caso de fallo (ej. Quota 429).
     """
     from google import genai
     from google.genai import types
+    import time
 
-    client = genai.Client(api_key=api_key)
-    
+    # Parsear múltiples llaves si vienen separadas por coma
+    claves_disponibles = [k.strip() for k in api_key.split(",")] if api_key else []
+    if not claves_disponibles:
+        raise RuntimeError("No se proporcionó ninguna API Key válida.")
+
     # Preparar imágenes en formato compatible
     parts = [EXTRACTION_SYSTEM_PROMPT]
     for idx, img in enumerate(images, 1):
@@ -102,26 +106,37 @@ def extract_with_gemini(images: List[Image.Image], api_key: str) -> ObservationI
     response = None
     last_error = None
     
-    for model_name in models_to_try:
-        try:
-            # print(f"Intentando inferencia con {model_name}...")
-            response = client.models.generate_content(
-                model=model_name,
-                contents=parts,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=ObservationInput,
-                    temperature=0.1
+    # 1. Bucle exterior: Rotación de API Keys (Si una se agota, pasa a la siguiente)
+    for current_key in claves_disponibles:
+        client = genai.Client(api_key=current_key)
+        
+        # 2. Bucle interior: Cascada de Modelos
+        for model_name in models_to_try:
+            try:
+                # Retardo estratégico de 3 segundos para evitar chocar contra el límite de 15 RPM
+                time.sleep(3)
+                
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=parts,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=ObservationInput,
+                        temperature=0.1
+                    )
                 )
-            )
-            # Si tiene éxito, salimos del bucle
+                # Si tiene éxito, salimos del bucle interior
+                break
+            except Exception as e:
+                last_error = e
+                print(f"Fallback activado en {model_name} con key terminada en ...{current_key[-4:]}: {str(e)[:60]}... -> Intentando siguiente.")
+        
+        # Si logramos respuesta con esta API key, salimos del bucle de rotación de llaves
+        if response:
             break
-        except Exception as e:
-            last_error = e
-            print(f"Fallback activado en {model_name}: {str(e)[:60]}... -> Intentando el siguiente modelo.")
             
     if not response:
-        raise RuntimeError(f"Agotados todos los modelos de la cascada. Último error: {last_error}")
+        raise RuntimeError(f"Agotadas todas las API Keys ({len(claves_disponibles)}) y todos los modelos. Último error: {last_error}")
     
     return ObservationInput.model_validate_json(response.text)
 

@@ -34,15 +34,20 @@ from core.branding import (
 
 # Carga de variables de entorno y secretos
 load_dotenv()
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_KEYS = []
+if os.environ.get("GEMINI_API_KEY"):
+    GEMINI_KEYS.append(os.environ.get("GEMINI_API_KEY"))
+
 try:
-    if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
-        GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    if hasattr(st, "secrets"):
+        if "GEMINI_API_KEY" in st.secrets and st.secrets["GEMINI_API_KEY"] not in GEMINI_KEYS:
+            GEMINI_KEYS.append(st.secrets["GEMINI_API_KEY"])
+        if "GEMINI_API_KEY_2" in st.secrets and st.secrets["GEMINI_API_KEY_2"] not in GEMINI_KEYS:
+            GEMINI_KEYS.append(st.secrets["GEMINI_API_KEY_2"])
 except Exception:
     pass
 
-if GEMINI_KEY:
-    os.environ["GEMINI_API_KEY"] = GEMINI_KEY
+GEMINI_KEY_STRING = ",".join(GEMINI_KEYS) if GEMINI_KEYS else None
 
 # Configuración de página Streamlit
 st.set_page_config(
@@ -176,7 +181,7 @@ with tab_ingesta:
                 progress_bar.progress(current / total)
                 status_text.caption(f"Procesando ({current}/{total}): `{fname}`...")
                 
-            resultados_lote = process_batch(archivos_a_procesar, api_key=GEMINI_KEY, progress_callback=on_progress)
+            resultados_lote = process_batch(archivos_a_procesar, api_key=GEMINI_KEY_STRING, progress_callback=on_progress)
             st.session_state["lote_results"] = resultados_lote
             progress_bar.progress(1.0)
             status_text.empty()
