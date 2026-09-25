@@ -30,6 +30,7 @@ Instrucciones estrictas:
 5. Cálculo de %PCP: Extrae el %PCP escrito a mano (ej. 100% o 18/18).
 6. Planes de Mejoramiento:
    - Transcribe íntegramente el texto manuscrito en la sección de planes de mejora.
+   - ¡MUY IMPORTANTE! Evalúa semánticamente el texto. Si el texto son excusas, evasivas ("todo bien", "ninguna", "nada", "me da lo mismo", "todo está correcto"), no tiene sentido, o es totalmente irrelevante a la seguridad, marca 'es_plan_valido' como false. Solo márcalo true si es una recomendación u observación real y coherente.
    - Identifica si se marcó la dificultad de ejecución: 'Fácil', 'Difícil' o 'Proyecto Especial'.
 7. Comentarios del observado: Transcribe fielmente lo que el observado comentó sobre cómo se sintió o riesgos adicionales.
 8. Comentarios adicionales del observador / Refuerzo positivo: Transcribe fielmente las observaciones finales.

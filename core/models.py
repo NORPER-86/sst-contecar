@@ -22,6 +22,7 @@ class BehaviorItem(BaseModel):
 class ImprovementPlan(BaseModel):
     """Plan de mejoramiento propuesto o sugerido."""
     propuesto: Optional[str] = Field(None, description="Descripción del plan de mejoramiento formulado")
+    es_plan_valido: bool = Field(False, description="True SOLO SI el texto contiene una recomendación genuina, coherente y útil. False si es texto basura, evasivo, excusas ('todo bien', 'nada'), o irrelevante.")
     tipo_ejecucion: Optional[Literal["Fácil", "Difícil", "Proyecto Especial"]] = Field(
         None, description="Grado de dificultad o nivel de gestión requerido"
     )

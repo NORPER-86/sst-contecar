@@ -389,6 +389,14 @@ with tab_dashboard:
     st.markdown("### 📊 Indicadores de Desempeño y Calidad (Datos en Tiempo Real de Supabase)")
     st.caption("Este tablero se alimenta exclusivamente de las nuevas observaciones procesadas y almacenadas en Supabase.")
     
+    col_info, col_btn = st.columns([3, 1])
+    with col_info:
+        st.info("⏳ **Nota de Sincronización:** Los datos guardados recientemente pueden tardar hasta 1 minuto en reflejarse debido a la memoria caché de la nube.")
+    with col_btn:
+        if st.button("🔄 Refrescar Datos Ahora"):
+            st.cache_data.clear()
+            st.rerun()
+    
     raw_supa_data = fetch_observations_from_supabase()
     
     if not raw_supa_data:
