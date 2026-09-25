@@ -10,6 +10,7 @@ import re
 from typing import List, Optional, Tuple, Dict, Any
 from PIL import Image
 import pymupdf
+from datetime import datetime
 
 from core.models import BehaviorItem, ImprovementPlan, ObservationInput, ObservationEvaluation
 from core.scoring import evaluate_observation
@@ -162,16 +163,16 @@ def fallback_text_layer_extractor(pdf_path: str) -> Optional[ObservationInput]:
     return ObservationInput(
         codigo_formato=codigo_formato,
         terminal=terminal,
-        fecha_realizacion="2026-08-20",
-        hora="14:20",
-        lugar="Plataforma rife 5A",
-        tarea_critica="Mantenimiento de Instalaciones Eléctricas",
-        observador="Carlos Romero",
-        supervisor_sst="Said Zabaleta",
-        empresa_ejecutante="Contecar",
+        fecha_realizacion=fecha_match.group(1).strip() if fecha_match else datetime.today().strftime("%Y-%m-%d"),
+        hora=hora_match.group(1).strip() if hora_match else "00:00",
+        lugar="N/A",
+        tarea_critica="Documento Texto (Fallback)",
+        observador=obs_match.group(1).strip() if obs_match else "N/A",
+        supervisor_sst=sup_match.group(1).strip() if sup_match else "N/A",
+        empresa_ejecutante="N/A",
         items=items,
-        pcp_manuscrito=100.0,
-        comentarios_observado="Sin comentarios" if sin_comentarios else "Diligenciado en campo",
+        pcp_manuscrito=None,
+        comentarios_observado="Sin comentarios" if sin_comentarios else None,
         comentarios_adicionales_observador="Sin comentarios" if sin_comentarios else None
     )
 

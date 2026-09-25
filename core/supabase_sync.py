@@ -67,14 +67,15 @@ def insert_batch_to_supabase(results: List[Dict[str, Any]]) -> bool:
 
 def fetch_observations_from_supabase() -> List[Dict[str, Any]]:
     """
-    Recupera todo el historial para el dashboard.
+    Recupera todo el historial para el dashboard (con límite extendido para BI).
     """
     client = get_supabase_client()
     if not client:
         return []
         
     try:
-        res = client.table("observaciones").select("*").execute()
+        # Extend limit to 100,000 to avoid silent 1000 row truncation default
+        res = client.table("observaciones").select("*").limit(100000).execute()
         return res.data
     except Exception as e:
         print(f"Error consultando Supabase: {e}")
