@@ -68,9 +68,16 @@ def evaluate_observation(obs: ObservationInput) -> ObservationEvaluation:
     plan = obs.plan_mejoramiento
     propuesto_texto = (plan.propuesto or "").strip()
     
-    # La IA ahora evalúa semánticamente si el plan es válido en 'es_plan_valido'.
-    # Usamos ese flag, con un respaldo adicional: si el texto es muy corto, tampoco es válido.
-    tiene_plan = plan.es_plan_valido and len(propuesto_texto) >= 4
+    # Evasivas comunes para respaldo heurístico
+    evasivas = ["ningun", "ninguno", "ninguna", "todo bien", "todo en orden", "sin novedad", "no aplica", "n/a", "no hay", "nada"]
+    es_texto_evasivo = any(e in propuesto_texto.lower() for e in evasivas) or len(propuesto_texto) < 4
+    
+    if plan.es_plan_valido is not None:
+        # Clasificación semántica de la IA activa
+        tiene_plan = plan.es_plan_valido and len(propuesto_texto) >= 4
+    else:
+        # Respaldo para ejecuciones sin IA o pruebas unitarias
+        tiene_plan = bool(propuesto_texto) and not es_texto_evasivo and plan.es_viable
     
     # PCP < 100% exige plan de mejoramiento
     if pcp < 100.0 and not tiene_plan:

@@ -47,7 +47,11 @@ try:
 except Exception:
     pass
 
+GEMINI_KEY = GEMINI_KEYS[0] if GEMINI_KEYS else None
 GEMINI_KEY_STRING = ",".join(GEMINI_KEYS) if GEMINI_KEYS else None
+
+if GEMINI_KEY:
+    os.environ["GEMINI_API_KEY"] = GEMINI_KEY
 
 # Configuración de página Streamlit
 st.set_page_config(
@@ -79,11 +83,13 @@ with st.sidebar:
     st.markdown("---")
     
     st.markdown("#### 🎯 **Motor de Inteligencia Artificial**")
-    if GEMINI_KEY:
+    if GEMINI_KEYS:
+        num_keys = len(GEMINI_KEYS)
+        key_label = f"({num_keys} API {'Key' if num_keys == 1 else 'Keys - Rotación Activa'})"
         st.markdown(f"""
         <div style='background:#EFF6FF; padding:12px; border-radius:8px; border-left:4px solid {SURA_BLUE};'>
             <div style='font-size:12px; font-weight:700; color:{SURA_NAVY_DARK};'>Visión Multimodal:</div>
-            <div style='font-size:11px; color:#059669; font-weight:700;'>● Servicio Conectado (Seguro)</div>
+            <div style='font-size:11px; color:#059669; font-weight:700;'>● Servicio Conectado {key_label}</div>
             <div style='font-size:10px; color:{SURA_TEXT_MUTED}; margin-top:3px;'>OCR Manuscrito & Layout Activo</div>
         </div>
         """, unsafe_allow_html=True)
@@ -614,7 +620,7 @@ with tab_dashboard:
                 with st.spinner("La Inteligencia Artificial está redactando el informe ejecutivo..."):
                     try:
                         from google import genai
-                        client = genai.Client()
+                        client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else genai.Client()
                         
                         resumen_cat = df_filtered["categoria"].value_counts().to_dict()
                         total_obs = len(df_filtered)
