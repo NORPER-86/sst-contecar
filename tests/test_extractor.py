@@ -11,6 +11,16 @@ from core.extractor import render_pdf_to_images, process_document
 
 class TestExtractorPipeline(unittest.TestCase):
 
+    def setUp(self):
+        # Aislamiento de entorno para pruebas unitarias deterministas y sin consumo de API externa
+        self.old_env = os.environ.get("GEMINI_API_KEY")
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
+
+    def tearDown(self):
+        if self.old_env is not None:
+            os.environ["GEMINI_API_KEY"] = self.old_env
+
     def test_pdf_rendering(self):
         """Verifica que PyMuPDF renderice correctamente las páginas de un PDF a imágenes PIL."""
         pdf_path = r"DOCUMENTOS DE BASE\MAN DE INS ELE AGOSTO SEM 3.pdf"
