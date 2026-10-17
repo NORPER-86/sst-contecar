@@ -1,7 +1,8 @@
 # Arquitectura del Sistema - SST ComPORTate
 
-## Estado de la Versión: v1.0.0 (MVP) + Parche Anti-Evasivas
-**Última Actualización:** Septiembre 2026
+## Estado de la Versión: v1.2.0 (Producción Activa)
+**Última Actualización:** Octubre 2026
+**Documento Maestro Exhaustivo:** Ver [MEMORIA_TECNICA_Y_ESTADO_DEL_PROYECTO.md](MEMORIA_TECNICA_Y_ESTADO_DEL_PROYECTO.md) para el detalle de alcance, logros, frustraciones y catálogo de incidentes.
 
 ## 1. Módulos Principales
 - **`app.py`**: Interfaz de usuario (Frontend en Streamlit). Maneja la Ingesta (Drag & Drop), el Tablero Analítico y la conexión con el modelo AI de Gemini.
