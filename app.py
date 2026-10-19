@@ -33,11 +33,13 @@ from core.branding import (
     CATEGORY_PALETTE
 )
 
-# Carga de variables de entorno y secretos
+# Carga de variables de entorno y secretos (2 de Google Gemini + 1 de DeepSeek)
 load_dotenv()
 GEMINI_KEYS = []
 if os.environ.get("GEMINI_API_KEY"):
     GEMINI_KEYS.append(os.environ.get("GEMINI_API_KEY"))
+if os.environ.get("GEMINI_API_KEY_2") and os.environ.get("GEMINI_API_KEY_2") not in GEMINI_KEYS:
+    GEMINI_KEYS.append(os.environ.get("GEMINI_API_KEY_2"))
 
 try:
     if hasattr(st, "secrets"):
@@ -50,6 +52,13 @@ except Exception:
 
 GEMINI_KEY = GEMINI_KEYS[0] if GEMINI_KEYS else None
 GEMINI_KEY_STRING = ",".join(GEMINI_KEYS) if GEMINI_KEYS else None
+
+DEEPSEEK_KEY = os.environ.get("DEEPSEEK_API_KEY")
+try:
+    if hasattr(st, "secrets") and "DEEPSEEK_API_KEY" in st.secrets:
+        DEEPSEEK_KEY = DEEPSEEK_KEY or st.secrets["DEEPSEEK_API_KEY"]
+except Exception:
+    pass
 
 if GEMINI_KEY:
     os.environ["GEMINI_API_KEY"] = GEMINI_KEY
@@ -86,16 +95,25 @@ with st.sidebar:
     st.markdown("#### 🎯 **Motor de Inteligencia Artificial**")
     if GEMINI_KEYS:
         num_keys = len(GEMINI_KEYS)
-        key_label = f"({num_keys} API {'Key' if num_keys == 1 else 'Keys - Rotación Activa'})"
+        key_label = f"({num_keys} API {'Key' if num_keys == 1 else 'Keys - Rotación'})"
         st.markdown(f"""
-        <div style='background:#EFF6FF; padding:12px; border-radius:8px; border-left:4px solid {SURA_BLUE};'>
-            <div style='font-size:12px; font-weight:700; color:{SURA_NAVY_DARK};'>Visión Multimodal:</div>
-            <div style='font-size:11px; color:#059669; font-weight:700;'>● Servicio Conectado {key_label}</div>
-            <div style='font-size:10px; color:{SURA_TEXT_MUTED}; margin-top:3px;'>OCR Manuscrito & Layout Activo</div>
+        <div style='background:#EFF6FF; padding:12px; border-radius:8px; border-left:4px solid {SURA_BLUE}; margin-bottom:8px;'>
+            <div style='font-size:12px; font-weight:700; color:{SURA_NAVY_DARK};'>Google Gemini Vision:</div>
+            <div style='font-size:11px; color:#059669; font-weight:700;'>● Conectado {key_label}</div>
+            <div style='font-size:10px; color:{SURA_TEXT_MUTED}; margin-top:2px;'>OCR Manuscrito & Layout</div>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.info("Modo de extracción local activo.")
+
+    if DEEPSEEK_KEY:
+        st.markdown(f"""
+        <div style='background:#F5F3FF; padding:12px; border-radius:8px; border-left:4px solid #7C3AED; margin-bottom:8px;'>
+            <div style='font-size:12px; font-weight:700; color:#4C1D95;'>DeepSeek V3 / R1:</div>
+            <div style='font-size:11px; color:#7C3AED; font-weight:700;'>● Respaldo Semántico Activo</div>
+            <div style='font-size:10px; color:{SURA_TEXT_MUTED}; margin-top:2px;'>Auditoría & Razonamiento SST</div>
+        </div>
+        """, unsafe_allow_html=True)
         
     st.markdown("---")
     st.markdown("#### ⚓ **Terminales del Puerto**")

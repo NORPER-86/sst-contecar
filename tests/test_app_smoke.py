@@ -66,6 +66,7 @@ class TestAppSmoke(unittest.TestCase):
         self.assertIn("GEMINI_KEY", assigned_names, "GEMINI_KEY debe estar explícitamente declarada a nivel de módulo")
         self.assertIn("GEMINI_KEYS", assigned_names, "GEMINI_KEYS debe estar explícitamente declarada a nivel de módulo")
         self.assertIn("GEMINI_KEY_STRING", assigned_names, "GEMINI_KEY_STRING debe estar explícitamente declarada a nivel de módulo")
+        self.assertIn("DEEPSEEK_KEY", assigned_names, "DEEPSEEK_KEY debe estar explícitamente declarada a nivel de módulo")
 
     def test_credentials_initialization_scenarios(self):
         """
@@ -76,6 +77,8 @@ class TestAppSmoke(unittest.TestCase):
             keys = []
             if env_dict.get("GEMINI_API_KEY"):
                 keys.append(env_dict.get("GEMINI_API_KEY"))
+            if env_dict.get("GEMINI_API_KEY_2") and env_dict.get("GEMINI_API_KEY_2") not in keys:
+                keys.append(env_dict.get("GEMINI_API_KEY_2"))
             if secrets_dict:
                 if "GEMINI_API_KEY" in secrets_dict and secrets_dict["GEMINI_API_KEY"] not in keys:
                     keys.append(secrets_dict["GEMINI_API_KEY"])
@@ -83,25 +86,31 @@ class TestAppSmoke(unittest.TestCase):
                     keys.append(secrets_dict["GEMINI_API_KEY_2"])
             gemini_key = keys[0] if keys else None
             gemini_key_string = ",".join(keys) if keys else None
-            return gemini_key, keys, gemini_key_string
+            deepseek_key = env_dict.get("DEEPSEEK_API_KEY") or (secrets_dict.get("DEEPSEEK_API_KEY") if secrets_dict else None)
+            return gemini_key, keys, gemini_key_string, deepseek_key
 
         # Caso 1: Cero llaves (Modo local)
-        k, keys, k_str = simulate_key_resolution({}, {})
+        k, keys, k_str, ds = simulate_key_resolution({}, {})
         self.assertIsNone(k)
         self.assertEqual(keys, [])
         self.assertIsNone(k_str)
+        self.assertIsNone(ds)
 
-        # Caso 2: 1 sola llave
-        k, keys, k_str = simulate_key_resolution({}, {"GEMINI_API_KEY": "KEY_1"})
+        # Caso 2: 1 sola llave Gemini
+        k, keys, k_str, ds = simulate_key_resolution({}, {"GEMINI_API_KEY": "KEY_1"})
         self.assertEqual(k, "KEY_1")
         self.assertEqual(keys, ["KEY_1"])
         self.assertEqual(k_str, "KEY_1")
 
-        # Caso 3: 2 llaves con rotación
-        k, keys, k_str = simulate_key_resolution({}, {"GEMINI_API_KEY": "KEY_1", "GEMINI_API_KEY_2": "KEY_2"})
+        # Caso 3: 2 llaves Gemini con rotación + 1 llave DeepSeek
+        k, keys, k_str, ds = simulate_key_resolution(
+            {"GEMINI_API_KEY": "KEY_1", "GEMINI_API_KEY_2": "KEY_2", "DEEPSEEK_API_KEY": "DS_KEY"},
+            {}
+        )
         self.assertEqual(k, "KEY_1")
         self.assertEqual(keys, ["KEY_1", "KEY_2"])
         self.assertEqual(k_str, "KEY_1,KEY_2")
+        self.assertEqual(ds, "DS_KEY")
 
     def test_required_stdlib_imports_present_in_app(self):
         """Verifica que módulos estándar críticos como 're', 'os', 'io', 'glob' estén importados."""
