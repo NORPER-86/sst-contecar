@@ -97,12 +97,13 @@ def extract_with_gemini(images: List[Image.Image], api_key: str) -> ObservationI
         
     parts.append("\nEntrega la extracción completa en formato JSON estructurado siguiendo el esquema requerido.")
     
-    # Cascada de modelos (del más reciente al más estable)
+    # Cascada de modelos Gemini 3.X (del más reciente al más estable)
     models_to_try = [
+        "gemini-3-flash",
+        "gemini-3.0-flash",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-2.5-flash"
+        "gemini-3.6-flash"
     ]
     
     response = None

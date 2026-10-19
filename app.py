@@ -764,7 +764,7 @@ with tab_dashboard:
             c_eng1, c_eng2 = st.columns([2, 1])
             motores_disponibles = []
             if GEMINI_KEY:
-                motores_disponibles.append("Google Gemini (Visión & Razonamiento)")
+                motores_disponibles.append("Google Gemini 3.X Flash (Visión & Razonamiento)")
             if DEEPSEEK_KEY:
                 motores_disponibles.append("DeepSeek V3 / R1 (Auditoría Profunda)")
             motores_disponibles.append("Motor Ejecutivo Heurístico Nativo")
@@ -812,14 +812,31 @@ Escribe un informe ejecutivo formal, contundente y estructurado:
 '''
                     informe_texto = ""
                     try:
-                        if "Gemini" in motor_sel and GEMINI_KEY:
+                        if "Gemini" in motor_sel and (GEMINI_KEYS or GEMINI_KEY):
                             from google import genai
-                            client = genai.Client(api_key=GEMINI_KEY)
-                            response = client.models.generate_content(
-                                model='gemini-2.5-flash',
-                                contents=prompt
-                            )
-                            informe_texto = response.text
+                            gemini_3x_models = [
+                                "gemini-3-flash",
+                                "gemini-3.0-flash",
+                                "gemini-3.8-flash",
+                                "gemini-3.7-flash",
+                                "gemini-3.6-flash"
+                            ]
+                            active_keys = GEMINI_KEYS if GEMINI_KEYS else [GEMINI_KEY]
+                            for curr_key in active_keys:
+                                client = genai.Client(api_key=curr_key)
+                                for model_name in gemini_3x_models:
+                                    try:
+                                        res = client.models.generate_content(
+                                            model=model_name,
+                                            contents=prompt
+                                        )
+                                        if res and res.text:
+                                            informe_texto = res.text
+                                            break
+                                    except Exception:
+                                        continue
+                                if informe_texto:
+                                    break
                         elif "DeepSeek" in motor_sel and DEEPSEEK_KEY:
                             import json
                             import urllib.request
