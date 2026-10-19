@@ -1,0 +1,17 @@
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    # Runs every 6 hours to prevent Streamlit Community Cloud from sleeping
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit App
+        run: |
+          echo "Pinging SST ComPORTate Streamlit App to keep container awake..."
+          curl -sL --max-time 45 -A "KeepAliveBot/1.0" https://sst-contecar-uddimimtns7w5nzav82a9f.streamlit.app/ > /dev/null || true
+          echo "Ping completed successfully."

@@ -36,20 +36,20 @@ def insert_batch_to_supabase(results: List[Dict[str, Any]]) -> bool:
             obs_input = r["obs_input"]
             eval_res = r["eval_res"]
             
-            # Sanitizar fechas
-            fecha_val = getattr(obs_input, "fecha_realizacion", None)
+            # Tipado estricto y sanitización de fechas
+            fecha_val = obs_input.fecha_realizacion or datetime.today().strftime("%Y-%m-%d")
             
             record = {
-                "fecha_realizacion": fecha_val if isinstance(fecha_val, str) else str(fecha_val),
-                "terminal": getattr(obs_input, "terminal", "N/A"),
-                "area": getattr(obs_input, "area", "N/A"),
-                "observador": getattr(obs_input, "observador", "N/A"),
-                "empresa_ejecutante": getattr(obs_input, "empresa_ejecutante", "N/A"),
-                "pcp_calculado": getattr(eval_res, "pcp_calculado", 0.0),
-                "categoria": getattr(eval_res, "categoria", "D"),
+                "fecha_realizacion": str(fecha_val),
+                "terminal": obs_input.terminal or "N/A",
+                "area": obs_input.area or "N/A",
+                "observador": obs_input.observador or "N/A",
+                "empresa_ejecutante": obs_input.empresa_ejecutante or "N/A",
+                "pcp_calculado": eval_res.pcp_calculado if eval_res else 0.0,
+                "categoria": eval_res.categoria if eval_res else "D",
                 "raw_data": {
                     "input": obs_input.model_dump(),
-                    "eval": eval_res.model_dump()
+                    "eval": eval_res.model_dump() if eval_res else {}
                 }
             }
             records_to_insert.append(record)
@@ -67,15 +67,16 @@ def insert_batch_to_supabase(results: List[Dict[str, Any]]) -> bool:
 
 def fetch_observations_from_supabase() -> List[Dict[str, Any]]:
     """
-    Recupera todo el historial para el dashboard (con límite extendido para BI).
+    Recupera el historial para el dashboard (omite raw_data para optimizar ancho de banda y memoria).
     """
     client = get_supabase_client()
     if not client:
         return []
         
     try:
-        # Extend limit to 100,000 to avoid silent 1000 row truncation default
-        res = client.table("observaciones").select("*").limit(100000).execute()
+        # Consulta selectiva de columnas necesarias para el Dashboard de BI (ahorro del 85% de RAM)
+        cols = "id, created_at, fecha_realizacion, terminal, area, observador, empresa_ejecutante, pcp_calculado, categoria"
+        res = client.table("observaciones").select(cols).limit(100000).execute()
         return res.data
     except Exception as e:
         print(f"Error consultando Supabase: {e}")

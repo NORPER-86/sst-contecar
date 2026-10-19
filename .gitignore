@@ -5,3 +5,7 @@ __pycache__/
 DOCUMENTOS DE BASE/
 Ejemplos observaciones digitadas.xlsx
 requirements_freeze.txt
+CONVERSACIONES DE PROYECTO/
+scratch/
+audit_pipeline.py
+test_supa.py

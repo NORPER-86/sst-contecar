@@ -129,7 +129,12 @@ def extract_with_gemini(images: List[Image.Image], api_key: str) -> ObservationI
                 break
             except Exception as e:
                 last_error = e
-                print(f"Fallback activado en {model_name} con key terminada en ...{current_key[-4:]}: {str(e)[:60]}... -> Intentando siguiente.")
+                err_str = str(e).lower()
+                print(f"Fallback activado en {model_name} con key terminada en ...{current_key[-4:]}: {str(e)[:60]}...")
+                # Si el error es de cuota (429 / resource_exhausted), conmutar inmediatamente a la siguiente API Key
+                if "429" in err_str or "resource_exhausted" in err_str or "quota" in err_str:
+                    print(f"Cuota agotada en key ...{current_key[-4:]}. Conmutando de inmediato a la siguiente llave.")
+                    break
         
         # Si logramos respuesta con esta API key, salimos del bucle de rotación de llaves
         if response:

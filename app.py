@@ -150,7 +150,12 @@ with tab_ingesta:
             os.makedirs("scratch", exist_ok=True)
             rutas = []
             for up_file in archivos_subidos:
-                save_p = os.path.join("scratch", up_file.name)
+                # Sanitización estricta contra Path Traversal (CWE-22)
+                base_name = os.path.basename(up_file.name)
+                safe_name = re.sub(r"[^\w\-.]", "_", base_name)
+                if not safe_name.lower().endswith(".pdf"):
+                    safe_name += ".pdf"
+                save_p = os.path.join("scratch", safe_name)
                 with open(save_p, "wb") as f:
                     f.write(up_file.getbuffer())
                 rutas.append(save_p)
