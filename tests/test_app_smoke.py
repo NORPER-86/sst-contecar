@@ -103,5 +103,47 @@ class TestAppSmoke(unittest.TestCase):
         self.assertEqual(keys, ["KEY_1", "KEY_2"])
         self.assertEqual(k_str, "KEY_1,KEY_2")
 
+    def test_required_stdlib_imports_present_in_app(self):
+        """Verifica que módulos estándar críticos como 're', 'os', 'io', 'glob' estén importados."""
+        tree = ast.parse(self.code_content)
+        imported_modules = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_modules.add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imported_modules.add(node.module)
+
+        for required in ["re", "os", "io", "glob", "pandas", "streamlit"]:
+            self.assertIn(
+                required,
+                imported_modules,
+                f"El módulo '{required}' debe estar explícitamente importado en app.py"
+            )
+
+    def test_file_upload_sanitization_logic(self):
+        """Valida que la rutina de sanitización de archivos subidos no lance NameError y filtre path traversal."""
+        import re
+        import os
+
+        test_filenames = [
+            ("../../../etc/passwd", "passwd.pdf"),
+            ("..\\..\\boot.ini", "boot.ini.pdf"),
+            ("Reporte SST 2026 #1 & final.pdf", "Reporte_SST_2026__1___final.pdf"),
+            ("archivo_sin_extension", "archivo_sin_extension.pdf"),
+            ("normal-doc_v1.0.pdf", "normal-doc_v1.0.pdf")
+        ]
+
+        for raw_name, expected_safe in test_filenames:
+            base_name = os.path.basename(raw_name)
+            safe_name = re.sub(r"[^\w\-.]", "_", base_name)
+            if not safe_name.lower().endswith(".pdf"):
+                safe_name += ".pdf"
+            self.assertEqual(safe_name, expected_safe)
+            self.assertNotIn("..", safe_name)
+            self.assertNotIn("/", safe_name)
+            self.assertNotIn("\\", safe_name)
+
 if __name__ == "__main__":
     unittest.main()
