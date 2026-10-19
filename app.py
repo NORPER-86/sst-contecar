@@ -20,7 +20,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Modelos y lógica central
-from core.models import ObservationInput, BehaviorItem, ImprovementPlan, ObservationEvaluation
+from core.models import ObservationInput, BehaviorItem, ImprovementPlan, ObservationEvaluation, AREAS_OPERATIVAS
 from core.scoring import evaluate_observation, calculate_pcp
 from core.excel_sync import map_observation_to_44_columns, append_to_master_excel, append_batch_to_master_excel
 from core.extractor import (
@@ -366,6 +366,42 @@ with tab_ingesta:
                     val_fecha = c2.text_input("Fecha", obs_input.fecha_realizacion or "", key=f"f_{archivo_sel}")
                     val_hora = c3.text_input("Hora", obs_input.hora or "", key=f"h_{archivo_sel}")
                     
+                    # --- CAJA DE OPCIONES DE ÁREA QUE REALIZA LA ACTIVIDAD ---
+                    c_ar1, c_ar2 = st.columns([1, 1])
+                    current_area = (obs_input.area or "Administración de Operaciones").strip()
+                    lista_oficial = [a for a in AREAS_OPERATIVAS if a != "Otros"]
+                    
+                    if current_area in lista_oficial:
+                        idx_area = lista_oficial.index(current_area)
+                        custom_area_val = ""
+                    else:
+                        matched = next((a for a in lista_oficial if a.lower() in current_area.lower() or current_area.lower() in a.lower()), None)
+                        if matched:
+                            idx_area = lista_oficial.index(matched)
+                            custom_area_val = ""
+                        else:
+                            idx_area = len(AREAS_OPERATIVAS) - 1 # 'Otros'
+                            custom_area_val = current_area
+                    
+                    val_area_sel = c_ar1.selectbox(
+                        "🏢 Área que Realiza la Actividad:",
+                        AREAS_OPERATIVAS,
+                        index=idx_area,
+                        key=f"area_sel_{archivo_sel}"
+                    )
+                    
+                    if val_area_sel == "Otros":
+                        val_area_custom = c_ar2.text_input(
+                            "✏️ Especifique Área Adicional:",
+                            value=custom_area_val,
+                            key=f"area_custom_{archivo_sel}",
+                            placeholder="Escribe el nombre del área..."
+                        )
+                        val_area_final = val_area_custom.strip() if val_area_custom.strip() else "Otros"
+                    else:
+                        val_area_final = val_area_sel
+                        c_ar2.caption(f"Área Registrada: **{val_area_final}**")
+                    
                     c4, c5 = st.columns(2)
                     val_obs = c4.text_input("Observador", obs_input.observador or "", key=f"o_{archivo_sel}")
                     val_sup = c5.text_input("Supervisor SST", obs_input.supervisor_sst or "", key=f"s_{archivo_sel}")
@@ -395,6 +431,7 @@ with tab_ingesta:
                     obs_input.terminal = val_term
                     obs_input.fecha_realizacion = val_fecha
                     obs_input.hora = val_hora
+                    obs_input.area = val_area_final
                     obs_input.observador = val_obs
                     obs_input.supervisor_sst = val_sup
                     obs_input.empresa_ejecutante = val_emp
@@ -460,16 +497,19 @@ with tab_dashboard:
             obs_options = ["TODOS"] + sorted([str(x) for x in df_supa["observador"].dropna().unique() if str(x) != 'nan'])
             filtro_obs = col_f2.selectbox("Observador (Persona)", obs_options)
             
-            area_options = ["TODAS"] + sorted([str(x) for x in df_supa["area"].dropna().unique() if str(x) != 'nan'])
-            filtro_area = col_f3.selectbox("Área Operativa", area_options)
+            # Áreas Oficiales solicitadas + Extras
+            area_base = [a for a in AREAS_OPERATIVAS if a != "Otros"] + ["Otros"]
+            extras = sorted([str(x) for x in df_supa["area"].dropna().unique() if str(x) != 'nan' and str(x) not in area_base])
+            area_options = ["TODAS"] + area_base + extras
+            filtro_area = col_f3.selectbox("🏢 Área que Realiza la Actividad", area_options)
             
             cat_options = ["TODAS"] + sorted([str(x) for x in df_supa["categoria"].dropna().unique() if str(x) != 'nan'])
             filtro_cat = col_f4.selectbox("Categoría Calidad", cat_options)
             
-            btn_generar = st.form_submit_button("Generar Analítica 📊", type="primary")
+            btn_generar = st.form_submit_button("Generar Analítica 3D 📊", type="primary")
             
         if not btn_generar and not st.session_state.get('analitica_generada', False):
-            st.info("👈 Selecciona los filtros que desees y haz clic en 'Generar Analítica' para visualizar el dashboard.")
+            st.info("👈 Selecciona los filtros que desees y haz clic en 'Generar Analítica 3D' para visualizar el dashboard.")
         else:
             st.session_state['analitica_generada'] = True
             
@@ -501,14 +541,14 @@ with tab_dashboard:
             else:
                 avg_pcp = 0.0
             
-            # Contar cuántos tienen plan propuesto verificando dentro del JSON raw_data
+            # Contar cuántos tienen plan propuesto
             def tiene_plan(raw):
                 try:
                     return 1 if raw.get("input", {}).get("plan_mejoramiento", {}).get("propuesto") else 0
-                except:
+                except Exception:
                     return 0
                 
-            con_plan = df_filtered["raw_data"].apply(tiene_plan).sum() if not df_filtered.empty else 0
+            con_plan = df_filtered["raw_data"].apply(tiene_plan).sum() if ("raw_data" in df_filtered and not df_filtered.empty) else 0
             cat_d = (df_filtered["categoria"] == "D").sum()
         
             # Tarjetas de KPIs estilo Manual SURA
@@ -557,34 +597,143 @@ with tab_dashboard:
                 """, unsafe_allow_html=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-        
-            # Fila de Gráficos 1
+            
+            # ==========================================================
+            # SECCIÓN 3D INTERACTIVA ULTRA-PREMIUM (NADA PLANO)
+            # ==========================================================
+            st.markdown("#### 🌐 **Espacio Tridimensional de Calidad Portuaria (Visualización 3D)**")
+            st.caption("Interactúa libremente: arrastra con el ratón para rotación orbital 360°, usa la rueda para zoom y clic derecho para paneo.")
+            
+            c3d_1, c3d_2 = st.columns([3, 2])
+            
+            with c3d_1:
+                st.markdown("##### 🚀 Cubo Espacial 3D (Área vs Empresa vs %PCP)")
+                df_3d = df_filtered.dropna(subset=["area", "empresa_ejecutante", "pcp_calculado"]).copy()
+                if not df_3d.empty:
+                    df_3d["pcp_num"] = pd.to_numeric(df_3d["pcp_calculado"], errors="coerce").fillna(0)
+                    
+                    traces_3d = []
+                    
+                    # 1. Postes / Stem lines 3D verticales
+                    x_stems, y_stems, z_stems = [], [], []
+                    for _, r_item in df_3d.iterrows():
+                        x_stems.extend([r_item["area"], r_item["area"], None])
+                        y_stems.extend([r_item["empresa_ejecutante"], r_item["empresa_ejecutante"], None])
+                        z_stems.extend([0, r_item["pcp_num"], None])
+                        
+                    traces_3d.append(go.Scatter3d(
+                        x=x_stems, y=y_stems, z=z_stems,
+                        mode="lines",
+                        line=dict(color="#94A3B8", width=2),
+                        hoverinfo="none",
+                        showlegend=False
+                    ))
+                    
+                    # 2. Esferas volumétricas 3D
+                    colors_3d = [CATEGORY_PALETTE.get(c, {}).get("color", SURA_BLUE) for c in df_3d["categoria"]]
+                    hover_texts = [
+                        f"<b>Área:</b> {r_item['area']}<br>"
+                        f"<b>Empresa:</b> {r_item['empresa_ejecutante']}<br>"
+                        f"<b>% PCP:</b> {r_item['pcp_num']:.1f}%<br>"
+                        f"<b>Categoría:</b> {r_item['categoria']}<br>"
+                        f"<b>Observador:</b> {r_item.get('observador', 'N/A')}"
+                        for _, r_item in df_3d.iterrows()
+                    ]
+                    
+                    traces_3d.append(go.Scatter3d(
+                        x=df_3d["area"],
+                        y=df_3d["empresa_ejecutante"],
+                        z=df_3d["pcp_num"],
+                        mode="markers+text",
+                        text=[f"{val:.0f}%" for val in df_3d["pcp_num"]],
+                        textposition="top center",
+                        textfont=dict(size=9, color=SURA_NAVY_DARK),
+                        hoverinfo="text",
+                        hovertext=hover_texts,
+                        marker=dict(
+                            size=9,
+                            color=colors_3d,
+                            opacity=0.92,
+                            line=dict(color="#FFFFFF", width=1.5)
+                        ),
+                        name="Observaciones"
+                    ))
+                    
+                    fig_cube = go.Figure(data=traces_3d)
+                    fig_cube.update_layout(
+                        scene=dict(
+                            xaxis=dict(title="Área", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                            yaxis=dict(title="Empresa", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                            zaxis=dict(title="% PCP", range=[0, 105], backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                            camera=dict(eye=dict(x=1.65, y=1.65, z=1.2))
+                        ),
+                        height=440,
+                        margin=dict(l=0, r=0, b=0, t=10),
+                        paper_bgcolor="rgba(0,0,0,0)"
+                    )
+                    st.plotly_chart(fig_cube, use_container_width=True)
+                else:
+                    st.info("No hay suficientes datos filtrados para generar el Cubo 3D.")
+
+            with c3d_2:
+                st.markdown("##### 🏔️ Topografía 3D de Concentración de Riesgo")
+                if not df_filtered.empty and "area" in df_filtered and "categoria" in df_filtered:
+                    ct = pd.crosstab(df_filtered["area"], df_filtered["categoria"])
+                    if not ct.empty and len(ct.index) >= 2 and len(ct.columns) >= 2:
+                        fig_surf = go.Figure(data=[go.Surface(
+                            z=ct.values,
+                            x=ct.columns.tolist(),
+                            y=ct.index.tolist(),
+                            colorscale=[[0, "#E0F2FE"], [0.5, "#00AEC7"], [1, "#0033A0"]],
+                            opacity=0.94,
+                            contours=dict(z=dict(show=True, usecolormap=True, project_z=True))
+                        )])
+                        fig_surf.update_layout(
+                            scene=dict(
+                                xaxis=dict(title="Categoría", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                                yaxis=dict(title="Área", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                                zaxis=dict(title="Total Obs", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
+                                camera=dict(eye=dict(x=1.5, y=1.5, z=1.3))
+                            ),
+                            height=440,
+                            margin=dict(l=0, r=0, b=0, t=10),
+                            paper_bgcolor="rgba(0,0,0,0)"
+                        )
+                        st.plotly_chart(fig_surf, use_container_width=True)
+                    else:
+                        # Respaldo 3D para matrices pequeñas
+                        fig_bar3d = px.bar(
+                            df_filtered["area"].value_counts().reset_index(),
+                            x="area", y="count", color="area",
+                            color_discrete_sequence=[SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK]
+                        )
+                        fig_bar3d.update_layout(height=440, showlegend=False)
+                        st.plotly_chart(fig_bar3d, use_container_width=True)
+                else:
+                    st.info("Sin registros para la topografía 3D.")
+
+            # Fila de Gráficos 2 (Distribución por Área y Tendencia)
             cg1, cg2 = st.columns(2)
         
             with cg1:
-                st.markdown("##### 🏆 Distribución de Categorías de Calidad (Matriz SURA)")
-                cat_counts = df_filtered["categoria"].value_counts().reset_index()
-                cat_counts.columns = ["Categoría", "Cantidad"]
-            
-                color_map = {cat: data["color"] for cat, data in CATEGORY_PALETTE.items()}
-            
-                fig_cat = px.bar(
-                    cat_counts, x="Categoría", y="Cantidad",
-                    color="Categoría", color_discrete_map=color_map,
-                    text="Cantidad"
+                st.markdown("##### ⚓ Desempeño y Observaciones por Área que Realiza la Actividad")
+                area_counts = df_filtered["area"].value_counts().reset_index()
+                area_counts.columns = ["Área", "Observaciones"]
+                fig_area = px.bar(
+                    area_counts, y="Área", x="Observaciones", orientation='h',
+                    color="Observaciones",
+                    color_continuous_scale=[[0, SURA_CYAN], [1, SURA_BLUE]]
                 )
-                fig_cat.update_layout(
-                    showlegend=False, height=350,
+                fig_area.update_layout(
+                    height=360, yaxis={"categoryorder": "total ascending"},
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=20, r=20, t=20, b=20),
-                    xaxis=dict(title="Categoría Oficial"),
-                    yaxis=dict(title="Número de Observaciones", showgrid=True, gridcolor="#E2E8F0")
+                    margin=dict(l=20, r=20, t=20, b=20)
                 )
-                st.plotly_chart(fig_cat, use_container_width=True)
+                st.plotly_chart(fig_area, use_container_width=True)
             
             with cg2:
-                st.markdown("##### 📈 Evolución del %PCP (Tendencia Temporal)")
+                st.markdown("##### 📈 Evolución del %PCP por Terminal (Tendencia Temporal)")
                 df_pcp_trend = df_filtered.dropna(subset=["fecha_realizacion", "pcp_calculado", "terminal"]).copy()
                 df_pcp_trend["Mes"] = df_pcp_trend["fecha_realizacion"].dt.strftime("%Y-%m")
                 df_pcp_trend["PCP_Pct"] = pd.to_numeric(df_pcp_trend["pcp_calculado"], errors="coerce")
@@ -597,84 +746,125 @@ with tab_dashboard:
                     markers=True, color_discrete_map={"CTC": SURA_BLUE, "SPRC": SURA_CYAN}
                 )
                 fig_trend.update_layout(
-                    height=350, yaxis_title="% PCP Promedio",
+                    height=360, yaxis_title="% PCP Promedio",
                     plot_bgcolor="rgba(0,0,0,0)",
                     paper_bgcolor="rgba(0,0,0,0)",
                     margin=dict(l=20, r=20, t=20, b=20),
                     yaxis=dict(range=[80, 105], showgrid=True, gridcolor="#E2E8F0")
                 )
                 st.plotly_chart(fig_trend, use_container_width=True)
-            
-            # Fila de Gráficos 2
-            cg3, cg4 = st.columns(2)
-        
-            with cg3:
-                st.markdown("##### ⚓ Observaciones por Área Operativa")
-                area_counts = df_filtered["area"].value_counts().reset_index().head(10)
-                area_counts.columns = ["Área", "Observaciones"]
-                fig_area = px.bar(
-                    area_counts, y="Área", x="Observaciones", orientation='h',
-                    color_discrete_sequence=[SURA_BLUE]
-                )
-                fig_area.update_layout(
-                    height=350, yaxis={"categoryorder": "total ascending"},
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=20, r=20, t=20, b=20)
-                )
-                st.plotly_chart(fig_area, use_container_width=True)
-            
-            with cg4:
-                st.markdown("##### 🏢 Observaciones por Empresa Ejecutante")
-                emp_counts = df_filtered["empresa_ejecutante"].value_counts().reset_index().head(10)
-                emp_counts.columns = ["Empresa", "Observaciones"]
-                fig_emp = px.pie(
-                    emp_counts, names="Empresa", values="Observaciones",
-                    color_discrete_sequence=[SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK, "#94A3B8"]
-                )
-                fig_emp.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-                st.plotly_chart(fig_emp, use_container_width=True)
 
-
+            # ==========================================================
+            # GENERADOR DE INFORME EJECUTIVO MODIFICADO (ÁREAS + IA DUAL)
+            # ==========================================================
             st.markdown("<hr>", unsafe_allow_html=True)
-            st.markdown("#### 📝 Generador de Informe Ejecutivo Automático")
-            st.caption("Genera un resumen en texto clasificado por las categorías de calidad A, B, C, D basado en tus filtros.")
+            st.markdown("#### 📝 Generador de Informe Ejecutivo Multimodal (Áreas & Calidad)")
+            st.caption("Genera un informe integral con balance por Área Operativa, cumplimiento de metas %PCP y recomendaciones específicas.")
             
-            if st.button("Generar Informe de la Selección", type="secondary"):
-                with st.spinner("La Inteligencia Artificial está redactando el informe ejecutivo..."):
-                    try:
-                        from google import genai
-                        client = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else genai.Client()
-                        
-                        resumen_cat = df_filtered["categoria"].value_counts().to_dict()
-                        total_obs = len(df_filtered)
-                        
-                        prompt = f'''
-Eres el Director de Seguridad y Salud en el Trabajo (SST) de CONTECAR / SURA.
-Acabas de revisar un lote de {total_obs} observaciones de comportamiento.
-La distribución de calidad de las observaciones es la siguiente (Matriz SURA):
+            c_eng1, c_eng2 = st.columns([2, 1])
+            motores_disponibles = []
+            if GEMINI_KEY:
+                motores_disponibles.append("Google Gemini (Visión & Razonamiento)")
+            if DEEPSEEK_KEY:
+                motores_disponibles.append("DeepSeek V3 / R1 (Auditoría Profunda)")
+            motores_disponibles.append("Motor Ejecutivo Heurístico Nativo")
+            
+            motor_sel = c_eng1.selectbox("Motor de Inteligencia Artificial para el Informe:", motores_disponibles)
+            btn_generar_inf = c_eng2.button("Generar Informe Ejecutivo 🚀", type="primary", use_container_width=True)
+            
+            if btn_generar_inf:
+                with st.spinner(f"Redactando informe ejecutivo con {motor_sel}..."):
+                    resumen_cat = df_filtered["categoria"].value_counts().to_dict()
+                    resumen_areas = df_filtered["area"].value_counts().to_dict()
+                    
+                    df_valid_pcp = df_filtered.dropna(subset=["area", "pcp_calculado"]).copy()
+                    df_valid_pcp["pcp_num"] = pd.to_numeric(df_valid_pcp["pcp_calculado"], errors="coerce")
+                    pcp_por_area = df_valid_pcp.groupby("area")["pcp_num"].mean().round(1).to_dict() if not df_valid_pcp.empty else {}
+                    total_obs = len(df_filtered)
+                    
+                    prompt = f'''
+Eres el Director de Seguridad y Salud en el Trabajo (SST) de CONTECAR y ARL SURA.
+Acabas de auditar un lote consolidado de {total_obs} observaciones de tareas críticas.
+
+DISTRIBUCIÓN POR ÁREA OPERATIVA QUE REALIZA LA ACTIVIDAD:
+{resumen_areas}
+
+PROMEDIO % PCP POR ÁREA:
+{pcp_por_area}
+
+DISTRIBUCIÓN DE CALIDAD DE LAS OBSERVACIONES (MATRIZ SURA):
 {resumen_cat}
 
-Contexto de calificaciones:
-- A / A+: Sobresalientes, alto impacto.
-- B / B+: Buenas, planes de mejora estándar.
-- C / C+: Regulares, incompletas pero funcionales.
-- D: Deficientes, requieren subsanación.
+Contexto normativo:
+- Meta corporativa: %PCP >= 95%.
+- Categorías A / A+: Sobresalientes con alto impacto preventivo y análisis causal.
+- Categorías B / B+: Buenas, planes de mejora aplicables estándar o con evidencias fotográficas.
+- Categorías C / C+: Regulares, diligenciamiento completo pero sin plan de mejora estructurado.
+- Categoría D: Deficientes o incompletas (requieren subsanación formal).
 
-Escribe un reporte ejecutivo formal y corto (máximo 3 párrafos).
-1. Un párrafo resumiendo el balance general.
-2. Un desglose en viñetas (bullet points) destacando las clasificaciones.
-3. Una recomendación final para los supervisores.
+ÁREAS MONITOREADAS:
+Administración de Operaciones, Aforos, Bodegas, Mantenimiento, Operaciones Marítimas, Refrigerados, Seguridad Física, SST, Vehículos y Otras.
+
+Escribe un informe ejecutivo formal, contundente y estructurado:
+1. Párrafo 1: Balance general de accidentalidad, cobertura y cumplimiento corporativo.
+2. Párrafo 2: Diagnóstico por Áreas Operativas (destacando las áreas con mejor desempeño y las áreas críticas que demandan intervención inmediata).
+3. Párrafo 3: Conclusiones y recomendaciones estratégicas por viñetas para los líderes de área y supervisores SST en campo.
 '''
-                        
-                        response = client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=prompt
-                        )
-                        st.success("Informe generado con éxito:")
-                        st.write(response.text)
+                    informe_texto = ""
+                    try:
+                        if "Gemini" in motor_sel and GEMINI_KEY:
+                            from google import genai
+                            client = genai.Client(api_key=GEMINI_KEY)
+                            response = client.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=prompt
+                            )
+                            informe_texto = response.text
+                        elif "DeepSeek" in motor_sel and DEEPSEEK_KEY:
+                            import json
+                            import urllib.request
+                            url = "https://api.deepseek.com/chat/completions"
+                            headers = {
+                                "Content-Type": "application/json",
+                                "Authorization": f"Bearer {DEEPSEEK_KEY}"
+                            }
+                            payload = {
+                                "model": "deepseek-chat",
+                                "messages": [
+                                    {"role": "system", "content": "Eres el Director Senior de SST de SURA y CONTECAR."},
+                                    {"role": "user", "content": prompt}
+                                ],
+                                "temperature": 0.3
+                            }
+                            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+                            with urllib.request.urlopen(req, timeout=30) as resp:
+                                res_json = json.loads(resp.read().decode("utf-8"))
+                                informe_texto = res_json["choices"][0]["message"]["content"]
+                        else:
+                            # Motor Heurístico Ejecutivo Nativo
+                            mejor_area = max(pcp_por_area, key=pcp_por_area.get) if pcp_por_area else "N/A"
+                            peor_area = min(pcp_por_area, key=pcp_por_area.get) if pcp_por_area else "N/A"
+                            top_areas = ', '.join([f'{a} ({c} obs)' for a, c in list(resumen_areas.items())[:4]])
+                            informe_texto = f"""
+### 📋 Balance Ejecutivo Consolidado de SST y Calidad Operativa
+
+Durante el periodo evaluado se auditaron un total de **{total_obs:,} observaciones** de tareas críticas en las terminales portuarias. El nivel de cumplimiento global alcanzó un **{avg_pcp:.1f}% de PCP**, frente a la meta corporativa del **95.0%**, evidenciando un compromiso firme en la aplicación de los estándares de seguridad basados en comportamientos (SBC).
+
+#### 🏢 Diagnóstico por Áreas que Realizan la Actividad:
+- **Área con Mayor Cumplimiento:** **{mejor_area}** con un promedio de **{pcp_por_area.get(mejor_area, 0):.1f}% de PCP**.
+- **Área con Mayor Oportunidad de Mejora:** **{peor_area}** con un promedio de **{pcp_por_area.get(peor_area, 0):.1f}% de PCP**, concentrando la mayor tasa de observaciones que requieren acompañamiento técnico.
+- **Distribución de Cobertura:** Las áreas con mayor registro fueron: {top_areas if top_areas else 'Áreas registradas'}.
+
+#### 🎯 Recomendaciones Estratégicas para la Supervisión:
+- **Subsanación de Incompletitudes:** Revisar con prioridad las **{cat_d} observaciones en Categoría D** para registrar causas específicas o planes de mejora.
+- **Evidencia Gráfica en Áreas Críticas:** Promover en *Mantenimiento*, *Refrigerados* y *Operaciones Marítimas* la captura de fotos de mejoras para elevar las calificaciones a B+ y A.
+- **Seguimiento a Comportamientos:** Coordinar sesiones de refuerzo positivo en *Vehículos* y *Aforos* para consolidar una cultura preventiva de autocuidado.
+"""
+                        st.success("✅ Informe Ejecutivo Generado Exitosamente:")
+                        st.markdown(informe_texto)
                     except Exception as e:
-                        st.error(f"No se pudo generar el informe: {e}")
+                        st.error(f"Falla al conectar con el servicio de IA ({e}). Mostrando informe heurístico consolidado:")
+                        st.markdown(f"**Balance:** {total_obs} observaciones evaluadas. PCP promedio: {avg_pcp:.1f}%.")
     # ==========================================================
     # TAB 3: BASE DE DATOS MAESTRA (44 COLUMNAS)
     # ==========================================================

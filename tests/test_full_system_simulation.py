@@ -20,7 +20,7 @@ import pandas as pd
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
-from core.models import ObservationInput, BehaviorItem, ImprovementPlan, ObservationEvaluation
+from core.models import ObservationInput, BehaviorItem, ImprovementPlan, ObservationEvaluation, AREAS_OPERATIVAS
 from core.scoring import calculate_pcp, evaluate_observation
 from core.excel_sync import (
     map_observation_to_44_columns,
@@ -449,6 +449,63 @@ class TestFullSystemSimulation(unittest.TestCase):
         self.assertIn(".sura-header-container", css)
         self.assertIn(".sura-kpi-card", css)
 
+    # -------------------------------------------------------------
+    # COMPONENTE 8: CATÁLOGO DE ÁREAS OPERATIVAS Y PREPARACIÓN 3D
+    # -------------------------------------------------------------
+    def test_component_8_operational_areas_and_3d_analytics_readiness(self):
+        """Valida el catálogo de 9 áreas operativas oficiales + 'Otros' y la coherencia de datos para gráficos 3D."""
+        areas_esperadas = [
+            "Administración de Operaciones",
+            "Aforos",
+            "Bodegas",
+            "Mantenimiento",
+            "Operaciones Marítimas",
+            "Refrigerados",
+            "Seguridad Física",
+            "SST",
+            "Vehículos",
+            "Otros"
+        ]
+        self.assertEqual(AREAS_OPERATIVAS, areas_esperadas)
+        self.assertEqual(len(AREAS_OPERATIVAS), 10)
+
+        # Validar que ObservationInput acepta cualquier área oficial o personalizada
+        for area_oficial in areas_esperadas[:-1]:
+            obs = ObservationInput(
+                terminal="CTC",
+                area=area_oficial,
+                fecha_realizacion="2026-10-19",
+                hora="14:00",
+                observador="Auditor SST",
+                empresa_ejecutante="CONTECAR",
+                items=[BehaviorItem(item_number=1, cumple="SI")]
+            )
+            self.assertEqual(obs.area, area_oficial)
+
+        # Caso área personalizada seleccionando "Otros" -> ej. "Subestación Eléctrica"
+        obs_custom = ObservationInput(
+            terminal="CTC",
+            area="Subestación Eléctrica",
+            fecha_realizacion="2026-10-19",
+            hora="14:30",
+            observador="Auditor SST",
+            empresa_ejecutante="CONTECAR",
+            items=[BehaviorItem(item_number=1, cumple="SI")]
+        )
+        self.assertEqual(obs_custom.area, "Subestación Eléctrica")
+
+        # Validar estructura de pivote para elevación y contornos del gráfico 3D
+        sample_df = pd.DataFrame({
+            "ÁREA": ["Mantenimiento", "Mantenimiento", "Aforos", "Refrigerados", "Vehículos"],
+            "CATEGORÍA DE LA OBSERVACIÓN": ["A", "B", "A", "C", "A"],
+            "PCP": [100.0, 85.0, 92.0, 100.0, 80.0]
+        })
+        contingency = pd.crosstab(sample_df["ÁREA"], sample_df["CATEGORÍA DE LA OBSERVACIÓN"])
+        self.assertIn("Mantenimiento", contingency.index)
+        self.assertIn("A", contingency.columns)
+        self.assertEqual(contingency.loc["Mantenimiento", "A"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
+

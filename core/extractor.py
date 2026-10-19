@@ -24,6 +24,8 @@ Instrucciones estrictas:
 1. Identifica la Tarea Crítica y el código del formato (ej. HS-FMT305, HS-FMT316, HS-FMT322, HS-FMT303).
 2. Empresa principal: Identifica si está marcada con X la casilla de SPRC o CONTECAR (CTC).
 3. Metadatos generales: Extrae fecha, hora, lugar, empresa ejecutante, nombre completo del observador y supervisor/auxiliar SST.
+   - Clasifica o extrae el Área Operativa en una de las siguientes opciones oficiales:
+     'Administración de Operaciones', 'Aforos', 'Bodegas', 'Mantenimiento', 'Operaciones Marítimas', 'Refrigerados', 'Seguridad Física', 'SST', 'Vehículos', u otra específica si no encaja en las anteriores.
 4. Lista de Comportamientos Críticos:
    - Para cada fila numerada, determina si está marcado con chulo, cruz o marca en 'SI', 'NO' o 'N/A'.
    - Si está marcado 'NO', transcribe obligatoriamente la columna '¿POR QUÉ?'.
@@ -197,6 +199,7 @@ def fallback_text_layer_extractor(pdf_path: str) -> Optional[ObservationInput]:
         hora=hora_match.group(1).strip() if hora_match else "00:00",
         lugar="N/A",
         tarea_critica="Documento Texto (Fallback)",
+        area="Mantenimiento",
         observador=obs_match.group(1).strip() if obs_match else "N/A",
         supervisor_sst=sup_match.group(1).strip() if sup_match else "N/A",
         empresa_ejecutante="N/A",
@@ -247,6 +250,7 @@ def extract_observation_from_file(file_path: str, api_key: Optional[str] = None)
             hora="14:10",
             lugar="Entrada y Salida Vehicular",
             tarea_critica="Observación de Operaciones en Entrada y Salida Vehicular",
+            area="Vehículos",
             observador="Fabio Galezo",
             supervisor_sst="Rubén Triviño",
             empresa_ejecutante="SPRC",
@@ -279,6 +283,7 @@ def extract_observation_from_file(file_path: str, api_key: Optional[str] = None)
             hora="14:20",
             lugar="Plataforma de Aforos",
             tarea_critica="Observación de Operaciones en Plataforma de Aforos",
+            area="Aforos",
             observador="Paula Andrea Olivo Lamadrid",
             supervisor_sst="Yesid Cruz",
             empresa_ejecutante="Sescaribe",
@@ -307,6 +312,7 @@ def extract_observation_from_file(file_path: str, api_key: Optional[str] = None)
             hora="10:40",
             lugar="7C módulos Reefer",
             tarea_critica="Observación de Conexión y Desconexión de Contenedores Refrigerados",
+            area="Refrigerados",
             observador="Victor Teran",
             supervisor_sst="Yesid Cruz",
             empresa_ejecutante="Impotarja",

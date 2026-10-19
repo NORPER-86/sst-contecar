@@ -8,6 +8,21 @@ from pydantic import BaseModel, Field
 from datetime import date, time, datetime
 
 
+# Catálogo Oficial de Áreas Operativas Portuarias (CONTECAR / SPRC)
+AREAS_OPERATIVAS = [
+    "Administración de Operaciones",
+    "Aforos",
+    "Bodegas",
+    "Mantenimiento",
+    "Operaciones Marítimas",
+    "Refrigerados",
+    "Seguridad Física",
+    "SST",
+    "Vehículos",
+    "Otros"
+]
+
+
 class BehaviorItem(BaseModel):
     """Evaluación de un comportamiento crítico específico."""
     item_number: int = Field(..., description="Número del ítem en la lista de chequeo")
