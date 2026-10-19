@@ -198,9 +198,31 @@ with tab_ingesta:
         if found:
             archivos_a_procesar = [found[0]]
 
-    # Botón de Procesamiento Masivo / Individual
+    # Configuración de Área Operativa y Botón de Procesamiento
     st.markdown("---")
     if archivos_a_procesar:
+        c_ar_b1, c_ar_b2 = st.columns([1, 1])
+        opciones_lote = ["🤖 Detección Automática por IA (según cada formato)"] + AREAS_OPERATIVAS
+        sel_area_lote = c_ar_b1.selectbox(
+            "🏢 Área que Realiza la Actividad:",
+            opciones_lote,
+            index=0,
+            help="Selecciona el área para estos archivos, o déjalo en Detección Automática para que la IA la asigne."
+        )
+        if sel_area_lote == "Otros":
+            custom_area_lote = c_ar_b2.text_input(
+                "✏️ Especifique Área Adicional:",
+                placeholder="Escribe el nombre del área...",
+                key="batch_custom_area"
+            )
+            area_lote_final = custom_area_lote.strip() if custom_area_lote.strip() else "Otros"
+        elif "Automática" in sel_area_lote:
+            area_lote_final = None
+            c_ar_b2.caption("ℹ️ La IA identificará y asignará el área de cada formato.")
+        else:
+            area_lote_final = sel_area_lote
+            c_ar_b2.caption(f"Área asignada al lote: **{area_lote_final}**")
+
         btn_col, _ = st.columns([2, 3])
         texto_btn = f"🚀 Procesar Lote Completo ({len(archivos_a_procesar)} archivos con OCR)" if len(archivos_a_procesar) > 1 else "⚡ Extraer y Evaluar Observación"
         if btn_col.button(texto_btn, type="primary", use_container_width=True):
@@ -212,6 +234,12 @@ with tab_ingesta:
                 status_text.caption(f"Procesando ({current}/{total}): `{fname}`...")
                 
             resultados_lote = process_batch(archivos_a_procesar, api_key=GEMINI_KEY_STRING, progress_callback=on_progress)
+            
+            if area_lote_final:
+                for r in resultados_lote:
+                    if r.get("obs_input"):
+                        r["obs_input"].area = area_lote_final
+                        
             st.session_state["lote_results"] = resultados_lote
             progress_bar.progress(1.0)
             status_text.empty()
@@ -248,6 +276,7 @@ with tab_ingesta:
                 obs = r["obs_input"]
                 tabla_rows.append({
                     "Archivo": fname,
+                    "Área": obs.area or "N/A",
                     "Tarea Crítica": obs.tarea_critica,
                     "Terminal": obs.terminal,
                     "Observador": obs.observador,
@@ -259,6 +288,7 @@ with tab_ingesta:
             else:
                 tabla_rows.append({
                     "Archivo": fname,
+                    "Área": "N/A",
                     "Tarea Crítica": "Error",
                     "Terminal": "N/A",
                     "Observador": "N/A",
