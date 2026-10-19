@@ -76,8 +76,8 @@ def evaluate_observation(obs: ObservationInput) -> ObservationEvaluation:
         # Clasificación semántica de la IA activa
         tiene_plan = plan.es_plan_valido and len(propuesto_texto) >= 4
     else:
-        # Respaldo para ejecuciones sin IA o pruebas unitarias
-        tiene_plan = bool(propuesto_texto) and not es_texto_evasivo and plan.es_viable
+        # Respaldo para ejecuciones sin IA o pruebas unitarias (incluye recomendaciones viables o no viables)
+        tiene_plan = bool(propuesto_texto) and not es_texto_evasivo and (plan.es_viable or plan.es_recomendacion)
     
     # PCP < 100% exige plan de mejoramiento
     if pcp < 100.0 and not tiene_plan:
