@@ -62,6 +62,21 @@ except Exception:
 
 if GEMINI_KEY:
     os.environ["GEMINI_API_KEY"] = GEMINI_KEY
+# Carga de credenciales Supabase desde os.environ o st.secrets
+if not os.environ.get("SUPABASE_URL"):
+    try:
+        if hasattr(st, "secrets") and "SUPABASE_URL" in st.secrets:
+            os.environ["SUPABASE_URL"] = str(st.secrets["SUPABASE_URL"])
+    except Exception:
+        pass
+
+if not os.environ.get("SUPABASE_KEY"):
+    try:
+        if hasattr(st, "secrets") and "SUPABASE_KEY" in st.secrets:
+            os.environ["SUPABASE_KEY"] = str(st.secrets["SUPABASE_KEY"])
+    except Exception:
+        pass
+
 
 # Configuración de página Streamlit
 st.set_page_config(

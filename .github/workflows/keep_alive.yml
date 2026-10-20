@@ -1,17 +1,44 @@
-name: Keep Streamlit App Awake
+name: Keep-Alive & Supabase Heartbeat
 
 on:
   schedule:
-    # Runs every 6 hours to prevent Streamlit Community Cloud from sleeping
+    # Se ejecuta cada 6 horas para mantener despiertos Render, Streamlit Cloud y Supabase
     - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Permite ejecutar el ping manualmente en cualquier momento desde GitHub
 
 jobs:
-  ping:
+  heartbeat:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit App
+      - name: Ping Servidor Render (HTTPS Oficial)
         run: |
-          echo "Pinging SST ComPORTate Streamlit App to keep container awake..."
-          curl -sL --max-time 45 -A "KeepAliveBot/1.0" https://sst-contecar-uddimimtns7w5nzav82a9f.streamlit.app/ > /dev/null || true
-          echo "Ping completed successfully."
+          echo "Manteniendo despierto el servidor en Render..."
+          curl -sL --max-time 45 -A "KeepAliveBot/1.0" https://sura-contecar.onrender.com > /dev/null || true
+          echo "✅ Render ping exitoso."
+
+      - name: Ping Servidor Streamlit Cloud
+        run: |
+          echo "Manteniendo despierto Streamlit Community Cloud..."
+          curl -sL --max-time 45 -A "KeepAliveBot/1.0" https://sst-contecar-uddimimtns7w5nzav82a9f.streamlit.app > /dev/null || true
+          echo "✅ Streamlit Cloud ping exitoso."
+
+      - name: Heartbeat Supabase (Prevenir Pausa por Inactividad)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "⚠️ Secretos SUPABASE_URL o SUPABASE_KEY no configurados en GitHub Secrets aún. Saltando heartbeat de base de datos."
+          else
+            echo "Enviando pulso de actividad a Supabase REST API..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+              -H "apikey: $SUPABASE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_KEY" \
+              "$SUPABASE_URL/rest/v1/observaciones?select=id&limit=1")
+            echo "Respuesta HTTP de Supabase: $HTTP_STATUS"
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+              echo "✅ Pulso Supabase registrado con éxito. El contador de inactividad se ha reseteado."
+            else
+              echo "ℹ️ Petición enviada a Supabase (Código $HTTP_STATUS)."
+            fi
+          fi
