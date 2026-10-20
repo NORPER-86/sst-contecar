@@ -15,6 +15,7 @@ from datetime import datetime
 from core.models import BehaviorItem, ImprovementPlan, ObservationInput, ObservationEvaluation
 from core.scoring import evaluate_observation
 from core.excel_sync import map_observation_to_44_columns, append_to_master_excel
+from core.image_preprocessor import preflight_image_enhancement
 
 
 EXTRACTION_SYSTEM_PROMPT = """Eres un experto auditor de Seguridad y Salud en el Trabajo (SST) para las terminales portuarias de CONTECAR y SPRC.
@@ -29,6 +30,7 @@ Instrucciones estrictas:
 4. Lista de Comportamientos Críticos:
    - Para cada fila numerada, determina si está marcado con chulo, cruz o marca en 'SI', 'NO' o 'N/A'.
    - Si está marcado 'NO', transcribe obligatoriamente la columna '¿POR QUÉ?'.
+   - Control de Confianza: Si la marca es nítida asigna 'confianza': 'ALTA' y 'duda_lectura': false. Si el trazo es tenue, borroso, tachado o ambiguo, asigna 'confianza': 'MEDIA'/'BAJA' y 'duda_lectura': true.
 5. Cálculo de %PCP: Extrae el %PCP escrito a mano (ej. 100% o 18/18).
 6. Planes de Mejoramiento:
    - Transcribe íntegramente el texto manuscrito en la sección de planes de mejora.
@@ -60,14 +62,9 @@ def render_pdf_to_images(pdf_path: str, dpi: int = 300) -> List[Image.Image]:
         img_bytes = pix.tobytes("png")
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
         
-        # Mejora de Contraste y Nitidez para resaltar la tinta del bolígrafo
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)  # Aumentar contraste un 50%
-        
-        sharpness = ImageEnhance.Sharpness(img)
-        img = sharpness.enhance(1.2) # Aumentar nitidez un 20%
-        
-        images.append(img)
+        # Preprocesamiento inteligente: orientación EXIF, realce adaptativo y nitidez
+        img_enhanced, _ = preflight_image_enhancement(img, target_dpi=dpi)
+        images.append(img_enhanced)
         
     return images
 

@@ -32,6 +32,8 @@ class BehaviorItem(BaseModel):
         None, 
         description="Justificación obligatoria si cumple == 'NO'. Causa del comportamiento no cumplido."
     )
+    confianza: str = Field(default="ALTA", description="Nivel de certeza OCR: ALTA, MEDIA, BAJA")
+    duda_lectura: bool = Field(default=False, description="True si la marca manuscrita es tenue, tachada o dudosa")
 
 
 class ImprovementPlan(BaseModel):

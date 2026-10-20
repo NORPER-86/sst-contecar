@@ -27,6 +27,7 @@ from core.extractor import (
     render_pdf_to_images, extract_observation_from_file, process_document,
     scan_directory_for_pdfs, process_batch
 )
+from core.charts_3d import build_3d_spatial_cube, build_3d_risk_topography
 from core.branding import (
     get_custom_css, get_header_html, get_sidebar_brand_html,
     SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK, SURA_TEXT_MUTED,
@@ -356,6 +357,12 @@ with tab_ingesta:
             eval_res = sel_res["eval_res"]
             path_sel = sel_res["file_path"]
             
+            # Semáforo de Confianza OCR: Alerta preventiva sobre trazos manuscritos tenues o dudosos
+            items_dudosos = [it for it in obs_input.items if getattr(it, "duda_lectura", False)]
+            if items_dudosos:
+                duda_nums = ", ".join([f"#{it.item_number}" for it in items_dudosos])
+                st.warning(f"⚠️ **Atención de Trazo Manuscrito**: La IA detectó trazos tenues, borrones o tachaduras en los ítems **{duda_nums}**. Te recomendamos cotejar especialmente esas casillas con el documento a la izquierda.")
+                
             col_pdf, col_form = st.columns([1, 1], gap="large")
             
             # --- PANEL IZQUIERDO: DOCUMENTO ESCANEADO ---
@@ -370,6 +377,7 @@ with tab_ingesta:
                             use_container_width=True, 
                             caption=f"Página {page_idx} de {len(images)} — {archivo_sel}"
                         )
+                        st.caption("✨ *Preprocesamiento Inteligente Activo: Auto-rotación EXIF y realce adaptativo de contraste aplicados.*")
                     else:
                         st.image(path_sel, use_container_width=True)
                 except Exception as e:
@@ -656,106 +664,17 @@ with tab_dashboard:
             with c3d_1:
                 st.markdown("##### 🚀 Cubo Espacial 3D (Área vs Empresa vs %PCP)")
                 df_3d = df_filtered.dropna(subset=["area", "empresa_ejecutante", "pcp_calculado"]).copy()
-                if not df_3d.empty:
-                    df_3d["pcp_num"] = pd.to_numeric(df_3d["pcp_calculado"], errors="coerce").fillna(0)
-                    
-                    traces_3d = []
-                    
-                    # 1. Postes / Stem lines 3D verticales
-                    x_stems, y_stems, z_stems = [], [], []
-                    for _, r_item in df_3d.iterrows():
-                        x_stems.extend([r_item["area"], r_item["area"], None])
-                        y_stems.extend([r_item["empresa_ejecutante"], r_item["empresa_ejecutante"], None])
-                        z_stems.extend([0, r_item["pcp_num"], None])
-                        
-                    traces_3d.append(go.Scatter3d(
-                        x=x_stems, y=y_stems, z=z_stems,
-                        mode="lines",
-                        line=dict(color="#94A3B8", width=2),
-                        hoverinfo="none",
-                        showlegend=False
-                    ))
-                    
-                    # 2. Esferas volumétricas 3D
-                    colors_3d = [CATEGORY_PALETTE.get(c, {}).get("color", SURA_BLUE) for c in df_3d["categoria"]]
-                    hover_texts = [
-                        f"<b>Área:</b> {r_item['area']}<br>"
-                        f"<b>Empresa:</b> {r_item['empresa_ejecutante']}<br>"
-                        f"<b>% PCP:</b> {r_item['pcp_num']:.1f}%<br>"
-                        f"<b>Categoría:</b> {r_item['categoria']}<br>"
-                        f"<b>Observador:</b> {r_item.get('observador', 'N/A')}"
-                        for _, r_item in df_3d.iterrows()
-                    ]
-                    
-                    traces_3d.append(go.Scatter3d(
-                        x=df_3d["area"],
-                        y=df_3d["empresa_ejecutante"],
-                        z=df_3d["pcp_num"],
-                        mode="markers+text",
-                        text=[f"{val:.0f}%" for val in df_3d["pcp_num"]],
-                        textposition="top center",
-                        textfont=dict(size=9, color=SURA_NAVY_DARK),
-                        hoverinfo="text",
-                        hovertext=hover_texts,
-                        marker=dict(
-                            size=9,
-                            color=colors_3d,
-                            opacity=0.92,
-                            line=dict(color="#FFFFFF", width=1.5)
-                        ),
-                        name="Observaciones"
-                    ))
-                    
-                    fig_cube = go.Figure(data=traces_3d)
-                    fig_cube.update_layout(
-                        scene=dict(
-                            xaxis=dict(title="Área", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                            yaxis=dict(title="Empresa", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                            zaxis=dict(title="% PCP", range=[0, 105], backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                            camera=dict(eye=dict(x=1.65, y=1.65, z=1.2))
-                        ),
-                        height=440,
-                        margin=dict(l=0, r=0, b=0, t=10),
-                        paper_bgcolor="rgba(0,0,0,0)"
-                    )
+                fig_cube = build_3d_spatial_cube(df_3d)
+                if fig_cube is not None:
                     st.plotly_chart(fig_cube, use_container_width=True)
                 else:
                     st.info("No hay suficientes datos filtrados para generar el Cubo 3D.")
 
             with c3d_2:
                 st.markdown("##### 🏔️ Topografía 3D de Concentración de Riesgo")
-                if not df_filtered.empty and "area" in df_filtered and "categoria" in df_filtered:
-                    ct = pd.crosstab(df_filtered["area"], df_filtered["categoria"])
-                    if not ct.empty and len(ct.index) >= 2 and len(ct.columns) >= 2:
-                        fig_surf = go.Figure(data=[go.Surface(
-                            z=ct.values,
-                            x=ct.columns.tolist(),
-                            y=ct.index.tolist(),
-                            colorscale=[[0, "#E0F2FE"], [0.5, "#00AEC7"], [1, "#0033A0"]],
-                            opacity=0.94,
-                            contours=dict(z=dict(show=True, usecolormap=True, project_z=True))
-                        )])
-                        fig_surf.update_layout(
-                            scene=dict(
-                                xaxis=dict(title="Categoría", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                                yaxis=dict(title="Área", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                                zaxis=dict(title="Total Obs", backgroundcolor="#F8FAFC", gridcolor="#E2E8F0"),
-                                camera=dict(eye=dict(x=1.5, y=1.5, z=1.3))
-                            ),
-                            height=440,
-                            margin=dict(l=0, r=0, b=0, t=10),
-                            paper_bgcolor="rgba(0,0,0,0)"
-                        )
-                        st.plotly_chart(fig_surf, use_container_width=True)
-                    else:
-                        # Respaldo 3D para matrices pequeñas
-                        fig_bar3d = px.bar(
-                            df_filtered["area"].value_counts().reset_index(),
-                            x="area", y="count", color="area",
-                            color_discrete_sequence=[SURA_BLUE, SURA_CYAN, SURA_YELLOW, SURA_NAVY_DARK]
-                        )
-                        fig_bar3d.update_layout(height=440, showlegend=False)
-                        st.plotly_chart(fig_bar3d, use_container_width=True)
+                fig_surf = build_3d_risk_topography(df_filtered)
+                if fig_surf is not None:
+                    st.plotly_chart(fig_surf, use_container_width=True)
                 else:
                     st.info("Sin registros para la topografía 3D.")
 
