@@ -38,15 +38,17 @@ load_dotenv()
 GEMINI_KEYS = []
 if os.environ.get("GEMINI_API_KEY"):
     GEMINI_KEYS.append(os.environ.get("GEMINI_API_KEY"))
-if os.environ.get("GEMINI_API_KEY_2") and os.environ.get("GEMINI_API_KEY_2") not in GEMINI_KEYS:
-    GEMINI_KEYS.append(os.environ.get("GEMINI_API_KEY_2"))
+k2_env = os.environ.get("GEMINI_API_KEY_2") or os.environ.get("GEMINI_API_KEY2")
+if k2_env and k2_env not in GEMINI_KEYS:
+    GEMINI_KEYS.append(k2_env)
 
 try:
     if hasattr(st, "secrets"):
         if "GEMINI_API_KEY" in st.secrets and st.secrets["GEMINI_API_KEY"] not in GEMINI_KEYS:
             GEMINI_KEYS.append(st.secrets["GEMINI_API_KEY"])
-        if "GEMINI_API_KEY_2" in st.secrets and st.secrets["GEMINI_API_KEY_2"] not in GEMINI_KEYS:
-            GEMINI_KEYS.append(st.secrets["GEMINI_API_KEY_2"])
+        k2_sec = st.secrets.get("GEMINI_API_KEY_2") or st.secrets.get("GEMINI_API_KEY2")
+        if k2_sec and k2_sec not in GEMINI_KEYS:
+            GEMINI_KEYS.append(k2_sec)
 except Exception:
     pass
 
